@@ -5,6 +5,11 @@
 extern crate alloc;
 use alloc::boxed::Box;
 
+#[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{Archive, Deserialize, Serialize};
+
 /// A reducing function that takes a collection of items of a given type and
 /// returns one item of the same type.
 pub trait MerkleAggregator {
@@ -12,7 +17,7 @@ pub trait MerkleAggregator {
     type Item;
 
     /// Returns the zero value to be used for a hash. This value can depend on
-    /// the `height` it is necessary at.
+    /// the `height` where it is being used.
     fn merkle_zero(height: u32) -> Self::Item;
 
     /// Aggregates the given `items`.
@@ -22,8 +27,13 @@ pub trait MerkleAggregator {
         I: IntoIterator<Item = &'a Self::Item>;
 }
 
-#[derive(Debug, Clone)]
-struct Node<A: MerkleAggregator, const ARITY: usize> {
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Serialize, Deserialize),
+    archive_attr(derive(CheckBytes), doc(hidden))
+)]
+#[doc(hidden)]
+pub struct Node<A: MerkleAggregator, const ARITY: usize> {
     num_leaves: u64,
     hash: Option<A::Item>,
     children: [Option<Box<Node<A, ARITY>>>; ARITY],
@@ -87,6 +97,11 @@ const fn capacity(arity: u64, height: u32) -> u64 {
 }
 
 /// A sparse Merkle tree.
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Serialize, Deserialize),
+    archive_attr(derive(CheckBytes))
+)]
 pub struct MerkleTree<
     A: MerkleAggregator,
     const HEIGHT: u32,

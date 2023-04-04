@@ -11,3 +11,17 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
+rkyv = { version = "0.7", optional = true, default-features = false }
+bytecheck = { version = "0.7", optional = true, default-features = false }
+
+[dev-dependencies]
+rkyv = { version = "0.7", default-features = false, features = ["size_64"] }
+
+[features]
+size_16 = ["rkyv/size_16"]
+size_32 = ["rkyv/size_32"]
+size_64 = ["rkyv/size_64"]
+rkyv-impl = [
+    "rkyv",
+    "bytecheck"
+]
