@@ -1,0 +1,7 @@
+[package]
+name = "dusk-merkle"
+description = "Crate implementing Dusk Network's Merkle tree"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
