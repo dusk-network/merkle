@@ -2,6 +2,12 @@
 name = "dusk-merkle"
 description = "Crate implementing Dusk Network's Merkle tree"
 version = "0.1.0"
+
+categories = ["data-structures", "no-std"]
+keywords = ["tree", "merkle", "hash", "data", "structure"]
+repository = "https://github.com/dusk-network/dusk-merkle"
+
 edition = "2021"
+license = "MPL-2.0"
 
 [dependencies]
