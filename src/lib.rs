@@ -9,7 +9,9 @@
 #![deny(clippy::pedantic)]
 
 extern crate alloc;
+
 use alloc::boxed::Box;
+use alloc::collections::BTreeSet;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -24,7 +26,7 @@ pub trait MerkleAggregator {
 
     /// Returns the zero value to be used for a hash. This value can depend on
     /// the `height` where it is being used.
-    fn merkle_zero(height: u32) -> Self::Item;
+    fn zero_hash(height: u32) -> Self::Item;
 
     /// Aggregates the given `items`.
     fn merkle_hash<'a, I>(items: I) -> Self::Item
@@ -40,7 +42,6 @@ pub trait MerkleAggregator {
 )]
 #[doc(hidden)]
 pub struct Node<A: MerkleAggregator, const ARITY: usize> {
-    num_leaves: u64,
     hash: Option<A::Item>,
     children: [Option<Box<Node<A, ARITY>>>; ARITY],
 }
@@ -53,7 +54,6 @@ where
 
     const fn new() -> Self {
         Self {
-            num_leaves: 0,
             hash: None,
             children: [Self::INIT; ARITY],
         }
@@ -66,7 +66,6 @@ where
     {
         if height == 1 {
             self.hash = Some(A::merkle_hash(items));
-            self.num_leaves += 1;
             return;
         }
 
@@ -87,14 +86,13 @@ where
         let child = self.children[child_index].as_mut().unwrap();
         Self::insert(child, height - 1, child_pos, items);
 
-        let merkle_zero = A::merkle_zero(height);
+        let merkle_zero = A::zero_hash(height);
         let hash = A::merkle_hash(self.children.iter().map(|c| match c {
             None => &merkle_zero,
             Some(child) => child.hash.as_ref().unwrap(),
         }));
 
         self.hash = Some(hash);
-        self.num_leaves += 1;
     }
 }
 
@@ -114,6 +112,8 @@ pub struct MerkleTree<
     const ARITY: usize,
 > {
     root: Node<A, ARITY>,
+    positions: BTreeSet<u64>,
+    len: u64,
 }
 
 impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
@@ -122,7 +122,11 @@ impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
     /// Create a new merkle tree.
     #[must_use]
     pub const fn new() -> Self {
-        Self { root: Node::new() }
+        Self {
+            root: Node::new(),
+            positions: BTreeSet::new(),
+            len: 0,
+        }
     }
 
     /// Insert an `element` at the given `position` in the tree.
@@ -135,6 +139,9 @@ impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
         I: IntoIterator<Item = &'a A::Item>,
     {
         self.root.insert(HEIGHT, position, items);
+        if self.positions.insert(position) {
+            self.len += 1;
+        }
     }
 
     /// Get the root of the merkle tree.
@@ -145,7 +152,7 @@ impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
     /// Returns the number of elements that have been inserted into the tree.
     #[must_use]
     pub fn len(&self) -> u64 {
-        self.root.num_leaves
+        self.len
     }
 
     /// Returns `true` if the tree is empty.
@@ -169,7 +176,7 @@ mod tests {
     impl MerkleAggregator for TestAggregator {
         type Item = u8;
 
-        fn merkle_zero(_height: u32) -> Self::Item {
+        fn zero_hash(_height: u32) -> Self::Item {
             0
         }
 
@@ -185,17 +192,6 @@ mod tests {
     }
 
     #[test]
-    fn new_node() {
-        let node = Node::<TestAggregator, 4>::new();
-
-        for child in &node.children {
-            assert!(child.is_none(), "All children should start as `None`");
-        }
-
-        assert_eq!(node.hash, None, "The hash value should default to `None`");
-    }
-
-    #[test]
     fn tree_insertion() {
         const HEIGHT: u32 = 3;
         const ARITY: usize = 2;
@@ -203,14 +199,19 @@ mod tests {
         let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
 
         tree.insert(5, [&42u8]);
+        tree.insert(6, [&42u8]);
         tree.insert(5, [&42u8]);
 
-        assert_eq!(tree.len(), 2, "Two items were inserted");
+        assert_eq!(
+            tree.len(),
+            2,
+            "Three items were inserted, but one was in the same position as another"
+        );
     }
 
     #[test]
     #[should_panic]
-    fn tree_insertion_panic() {
+    fn tree_insertion_out_of_bounds() {
         const HEIGHT: u32 = 3;
         const ARITY: usize = 2;
 

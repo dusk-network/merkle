@@ -2,12 +2,13 @@
 
 A sparsely populated [`MerkleTree`], parametrized over its height and arity.
 ```text
-       o
-     /   \
-    o     o
-   / \   / \
-  o   x o   x
+Height 0       o
+             /   \
+Height 1    o     o 
+           / \   / \
+Height 2  o   x x   x 
 ```
+
 ## Usage
 ```rust
 use dusk_merkle::{MerkleTree, MerkleAggregator};
@@ -16,7 +17,7 @@ struct TestAggregator;
 impl MerkleAggregator for TestAggregator {
     type Item = u8;
 
-    fn merkle_zero(_height: u32) -> Self::Item {
+    fn zero_hash(_height: u32) -> Self::Item {
         0
     }
 
