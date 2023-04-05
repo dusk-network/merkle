@@ -17,7 +17,7 @@ struct TestAggregator;
 impl MerkleAggregator for TestAggregator {
     type Item = u8;
 
-    fn zero_hash(_height: u32) -> Self::Item {
+    fn zero_hash(_height: usize) -> Self::Item {
         0
     }
 
@@ -32,7 +32,7 @@ impl MerkleAggregator for TestAggregator {
     }
 }
 
-const HEIGHT: u32 = 3;
+const HEIGHT: usize = 3;
 const ARITY: usize = 2;
 
 let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
