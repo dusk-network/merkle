@@ -12,6 +12,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
+use core::mem;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -91,8 +92,60 @@ where
             None => &merkle_zero,
             Some(child) => child.hash.as_ref().unwrap(),
         }));
-
         self.hash = Some(hash);
+    }
+
+    /// Returns the hash of the removed element, together with if there are any
+    /// siblings left in the branch.
+    ///
+    /// # Panics
+    /// If an element does not exist at the given position.
+    fn remove(&mut self, height: u32, position: u64) -> (A::Item, bool) {
+        if height == 1 {
+            let mut hash = Some(A::zero_hash(height));
+            mem::swap(&mut self.hash, &mut hash);
+            return (
+                hash.expect("There should be an element at this position"),
+                false,
+            );
+        }
+
+        let child_cap = capacity(ARITY as u64, height - 1);
+
+        // Casting to a `usize` should be fine, since the index should be within
+        // the `[0, ARITY[` bound anyway.
+        #[allow(clippy::cast_possible_truncation)]
+        let child_index = (position / child_cap) as usize;
+        let child_pos = position % child_cap;
+
+        let child = self.children[child_index]
+            .as_mut()
+            .expect("There should be a child at this position");
+        let (removed_hash, child_has_children) =
+            Self::remove(child, height - 1, child_pos);
+
+        if !child_has_children {
+            self.children[child_index] = None;
+        }
+
+        let mut has_children = false;
+        for child in &self.children {
+            if child.is_some() {
+                has_children = true;
+                break;
+            }
+        }
+
+        if has_children {
+            let merkle_zero = A::zero_hash(height);
+            let hash = A::merkle_hash(self.children.iter().map(|c| match c {
+                None => &merkle_zero,
+                Some(child) => child.hash.as_ref().unwrap(),
+            }));
+            self.hash = Some(hash);
+        }
+
+        (removed_hash, has_children)
     }
 }
 
@@ -142,6 +195,25 @@ impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
         if self.positions.insert(position) {
             self.len += 1;
         }
+    }
+
+    /// Remove and return the hash of the element at the given `position` in the
+    /// tree.
+    pub fn remove(&mut self, position: u64) -> Option<A::Item> {
+        if !self.positions.contains(&position) {
+            return None;
+        }
+
+        let (hash, _) = self.root.remove(HEIGHT, position);
+
+        self.len -= 1;
+        self.positions.remove(&position);
+
+        if self.len == 0 {
+            self.root.hash = None;
+        }
+
+        Some(hash)
     }
 
     /// Get the root of the merkle tree.
@@ -212,6 +284,34 @@ mod tests {
             2,
             "Three items were inserted, but one was in the same position as another"
         );
+    }
+
+    #[test]
+    fn tree_deletion() {
+        const HEIGHT: u32 = 3;
+        const ARITY: usize = 2;
+
+        let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
+
+        tree.insert(5, [&42u8]);
+        tree.insert(6, [&42u8]);
+        tree.insert(5, [&42u8]);
+
+        tree.remove(5);
+        tree.remove(4);
+
+        assert_eq!(
+            tree.len(),
+            1,
+            "There should be one element left in the tree"
+        );
+
+        tree.remove(6);
+        assert!(tree.is_empty(), "The tree should be empty");
+        assert!(
+            matches!(tree.root(), None),
+            "Since the tree is empty the root should be `None`"
+        )
     }
 
     #[test]
