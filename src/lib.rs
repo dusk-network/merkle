@@ -12,6 +12,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
+
 use core::mem;
 
 #[cfg(feature = "rkyv-impl")]
@@ -60,6 +61,27 @@ where
         }
     }
 
+    fn compute_hash(&mut self, height: u32) {
+        let merkle_zero = A::zero_hash(height);
+        let hash = A::merkle_hash(self.children.iter().map(|c| match c {
+            None => &merkle_zero,
+            Some(child) => child.hash.as_ref().unwrap(),
+        }));
+        self.hash = Some(hash);
+    }
+
+    fn child_location(&self, height: u32, position: u64) -> (usize, u64) {
+        let child_cap = capacity(ARITY as u64, height - 1);
+
+        // Casting to a `usize` should be fine, since the index should be within
+        // the `[0, ARITY[` bound anyway.
+        #[allow(clippy::cast_possible_truncation)]
+        let child_index = (position / child_cap) as usize;
+        let child_pos = position % child_cap;
+
+        (child_index, child_pos)
+    }
+
     fn insert<'a, I>(&mut self, height: u32, position: u64, items: I)
     where
         A::Item: 'a,
@@ -70,13 +92,7 @@ where
             return;
         }
 
-        let child_cap = capacity(ARITY as u64, height - 1);
-
-        // Casting to a `usize` should be fine, since the index should be within
-        // the `[0, ARITY[` bound anyway.
-        #[allow(clippy::cast_possible_truncation)]
-        let child_index = (position / child_cap) as usize;
-        let child_pos = position % child_cap;
+        let (child_index, child_pos) = self.child_location(height, position);
 
         let child = &mut self.children[child_index];
         if child.is_none() {
@@ -87,12 +103,7 @@ where
         let child = self.children[child_index].as_mut().unwrap();
         Self::insert(child, height - 1, child_pos, items);
 
-        let merkle_zero = A::zero_hash(height);
-        let hash = A::merkle_hash(self.children.iter().map(|c| match c {
-            None => &merkle_zero,
-            Some(child) => child.hash.as_ref().unwrap(),
-        }));
-        self.hash = Some(hash);
+        self.compute_hash(height);
     }
 
     /// Returns the hash of the removed element, together with if there are any
@@ -110,13 +121,7 @@ where
             );
         }
 
-        let child_cap = capacity(ARITY as u64, height - 1);
-
-        // Casting to a `usize` should be fine, since the index should be within
-        // the `[0, ARITY[` bound anyway.
-        #[allow(clippy::cast_possible_truncation)]
-        let child_index = (position / child_cap) as usize;
-        let child_pos = position % child_cap;
+        let (child_index, child_pos) = self.child_location(height, position);
 
         let child = self.children[child_index]
             .as_mut()
@@ -137,12 +142,7 @@ where
         }
 
         if has_children {
-            let merkle_zero = A::zero_hash(height);
-            let hash = A::merkle_hash(self.children.iter().map(|c| match c {
-                None => &merkle_zero,
-                Some(child) => child.hash.as_ref().unwrap(),
-            }));
-            self.hash = Some(hash);
+            self.compute_hash(height);
         }
 
         (removed_hash, has_children)
