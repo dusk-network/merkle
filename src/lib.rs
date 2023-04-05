@@ -20,7 +20,7 @@ use core::mem;
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
-use rkyv::{Archive, Deserialize, Serialize};
+use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 pub use opening::*;
 
@@ -44,19 +44,21 @@ pub trait MerkleAggregator {
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
+    archive(bound(serialize = "__S: Serializer")),
     archive_attr(derive(CheckBytes), doc(hidden))
 )]
 #[doc(hidden)]
-pub struct Node<A: MerkleAggregator, const ARITY: usize> {
+pub struct Node<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize> {
     hash: Option<A::Item>,
-    children: [Option<Box<Node<A, ARITY>>>; ARITY],
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
+    children: [Option<Box<Node<A, HEIGHT, ARITY>>>; ARITY],
 }
 
-impl<A, const ARITY: usize> Node<A, ARITY>
+impl<A, const HEIGHT: usize, const ARITY: usize> Node<A, HEIGHT, ARITY>
 where
     A: MerkleAggregator,
 {
-    const INIT: Option<Box<Node<A, ARITY>>> = None;
+    const INIT: Option<Box<Node<A, HEIGHT, ARITY>>> = None;
 
     const fn new() -> Self {
         Self {
@@ -75,7 +77,7 @@ where
     }
 
     fn child_location(height: usize, position: u64) -> (usize, u64) {
-        let child_cap = capacity(ARITY as u64, height - 1);
+        let child_cap = capacity(ARITY as u64, HEIGHT - height - 1);
 
         // Casting to a `usize` should be fine, since the index should be within
         // the `[0, ARITY[` bound anyway.
@@ -91,7 +93,7 @@ where
         A::Item: 'a,
         I: IntoIterator<Item = &'a A::Item>,
     {
-        if height == 1 {
+        if height == HEIGHT - 1 {
             self.hash = Some(A::merkle_hash(items));
             return;
         }
@@ -105,7 +107,7 @@ where
 
         // We just inserted a child at the given index.
         let child = self.children[child_index].as_mut().unwrap();
-        Self::insert(child, height - 1, child_pos, items);
+        Self::insert(child, height + 1, child_pos, items);
 
         self.compute_hash(height);
     }
@@ -116,7 +118,7 @@ where
     /// # Panics
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (A::Item, bool) {
-        if height == 1 {
+        if height == HEIGHT - 1 {
             let mut hash = Some(A::zero_hash(height));
             mem::swap(&mut self.hash, &mut hash);
             return (
@@ -131,7 +133,7 @@ where
             .as_mut()
             .expect("There should be a child at this position");
         let (removed_hash, child_has_children) =
-            Self::remove(child, height - 1, child_pos);
+            Self::remove(child, height + 1, child_pos);
 
         if !child_has_children {
             self.children[child_index] = None;
@@ -153,11 +155,12 @@ where
     }
 }
 
-const fn capacity(arity: u64, height: usize) -> u64 {
+/// Returns the capacity of a node at a given depth in the tree.
+const fn capacity(arity: u64, depth: usize) -> u64 {
     // (Down)casting to a `u32` should be ok, since height shouldn't ever become
     // that large.
     #[allow(clippy::cast_possible_truncation)]
-    u64::pow(arity, height as u32)
+    u64::pow(arity, depth as u32)
 }
 
 /// A sparse Merkle tree.
@@ -171,7 +174,7 @@ pub struct MerkleTree<
     const HEIGHT: usize,
     const ARITY: usize,
 > {
-    root: Node<A, ARITY>,
+    root: Node<A, HEIGHT, ARITY>,
     positions: BTreeSet<u64>,
     len: u64,
 }
@@ -198,7 +201,7 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
         A::Item: 'a,
         I: IntoIterator<Item = &'a A::Item>,
     {
-        self.root.insert(HEIGHT, position, items);
+        self.root.insert(0, position, items);
         if self.positions.insert(position) {
             self.len += 1;
         }
@@ -211,7 +214,7 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
             return None;
         }
 
-        let (hash, _) = self.root.remove(HEIGHT, position);
+        let (hash, _) = self.root.remove(0, position);
 
         self.len -= 1;
         self.positions.remove(&position);
@@ -332,7 +335,7 @@ mod tests {
         assert!(
             matches!(tree.root(), None),
             "Since the tree is empty the root should be `None`"
-        )
+        );
     }
 
     #[test]

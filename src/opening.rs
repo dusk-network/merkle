@@ -18,7 +18,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
-    archive_attr(derive(CheckBytes), doc(hidden))
+    archive_attr(derive(CheckBytes))
 )]
 #[allow(clippy::module_name_repetitions)]
 pub struct MerkleOpening<
@@ -54,19 +54,19 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
 
 fn fill_opening<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>(
     opening: &mut MerkleOpening<A, HEIGHT, ARITY>,
-    node: &Node<A, ARITY>,
+    node: &Node<A, HEIGHT, ARITY>,
     height: usize,
     position: u64,
 ) where
     <A as MerkleAggregator>::Item: Clone,
 {
     // If we are at the leaf, we're already done.
-    if height == 1 {
+    if height == HEIGHT - 1 {
         return;
     }
 
     let (child_index, child_pos) =
-        Node::<A, ARITY>::child_location(height, position);
+        Node::<A, HEIGHT, ARITY>::child_location(height, position);
     let child = node.children[child_index]
         .as_ref()
         .expect("There should be a child at this position");
@@ -74,12 +74,12 @@ fn fill_opening<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>(
     fill_opening(opening, child, height, child_pos);
 
     // The root is placed at `(0, 0)`
-    if height == HEIGHT {
+    if height == 0 {
         opening.branch[0][0] =
             node.hash.as_ref().expect("There should be a root").clone();
     }
 
-    let index = HEIGHT - height + 1;
+    let index = height + 1;
     for (i, child) in node.children.iter().enumerate() {
         let hash = &mut opening.branch[index][i];
 
