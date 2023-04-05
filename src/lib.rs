@@ -149,6 +149,11 @@ impl<A: MerkleAggregator, const HEIGHT: u32, const ARITY: usize>
         self.root.hash.as_ref()
     }
 
+    /// Returns true if the tree contains a leaf at the given `position`.
+    pub fn contains(&self, position: u64) -> bool {
+        self.positions.contains(&position)
+    }
+
     /// Returns the number of elements that have been inserted into the tree.
     #[must_use]
     pub fn len(&self) -> u64 {
