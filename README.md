@@ -11,17 +11,17 @@ Height 2  o   x x   x
 
 ## Usage
 ```rust
-use dusk_merkle::{MerkleTree, MerkleAggregator};
+use dusk_merkle::{Tree, Aggregator};
 
 struct TestAggregator;
-impl MerkleAggregator for TestAggregator {
+impl Aggregator for TestAggregator {
     type Item = u8;
 
-    fn zero_hash(_height: usize) -> Self::Item {
+    fn zero_item(_height: usize) -> Self::Item {
         0
     }
 
-    fn merkle_hash<'a, I>(items: I) -> Self::Item
+    fn aggregate<'a, I>(items: I) -> Self::Item
         where
             Self::Item: 'a,
             I: IntoIterator<Item = &'a Self::Item>,
@@ -35,7 +35,7 @@ impl MerkleAggregator for TestAggregator {
 const HEIGHT: usize = 3;
 const ARITY: usize = 2;
 
-let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
+let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
 // No elements have been inserted so the root is `None`.
 assert!(matches!(tree.root(), None));
