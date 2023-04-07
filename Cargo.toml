@@ -14,6 +14,10 @@ license = "MPL-2.0"
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.7", optional = true, default-features = false }
 
+[dev-dependencies]
+blake3 = "1"
+rand = "0.8"
+
 [features]
 size_16 = ["rkyv/size_16"]
 size_32 = ["rkyv/size_32"]
