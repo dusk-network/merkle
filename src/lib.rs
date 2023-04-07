@@ -60,6 +60,9 @@ where
     const INIT: Option<Box<Node<A, HEIGHT, ARITY>>> = None;
 
     const fn new() -> Self {
+        debug_assert!(HEIGHT > 0, "Height must be larger than zero");
+        debug_assert!(ARITY > 0, "Arity must be larger than zero");
+
         Self {
             hash: None,
             children: [Self::INIT; ARITY],
@@ -92,7 +95,7 @@ where
         A::Item: 'a,
         I: IntoIterator<Item = &'a A::Item>,
     {
-        if height == HEIGHT - 1 {
+        if height == HEIGHT {
             self.hash = Some(A::aggregate(items));
             return;
         }
@@ -117,7 +120,7 @@ where
     /// # Panics
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (A::Item, bool) {
-        if height == HEIGHT - 1 {
+        if height == HEIGHT {
             let mut hash = Some(A::zero_item(height));
             mem::swap(&mut self.hash, &mut hash);
             return (
