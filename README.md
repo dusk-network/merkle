@@ -1,6 +1,6 @@
 # dusk-merkle
 
-A sparsely populated [`MerkleTree`], parametrized over its height and arity.
+A sparsely populated Merkle [`Tree`], parametrized over its height and arity.
 ```text
 Height 0       o
              /   \
