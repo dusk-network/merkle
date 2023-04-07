@@ -76,6 +76,23 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
 
         self.root == hash
     }
+
+    /// Returns the root of the opening.
+    ///
+    /// The root is equal to that of the tree when the opening was produced.
+    pub fn root(&self) -> &A::Item {
+        &self.root
+    }
+
+    /// Returns the levels of the opening.
+    ///
+    /// These, together with the [`root`], are used to verify that an item is
+    /// included in the tree.
+    ///
+    /// [`root`]: Opening::root
+    pub fn levels(&self) -> &[[A::Item; ARITY]] {
+        &self.branch
+    }
 }
 
 fn fill_opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize>(
