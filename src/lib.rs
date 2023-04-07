@@ -26,16 +26,15 @@ pub use opening::*;
 
 /// A reducing function that takes a collection of items of a given type and
 /// returns one item of the same type.
-pub trait MerkleAggregator {
+pub trait Aggregator {
     /// The item processed by the aggregator.
     type Item;
 
-    /// Returns the zero value to be used for a hash. This value can depend on
-    /// the `height` where it is being used.
-    fn zero_hash(height: usize) -> Self::Item;
+    /// Returns the zero value to be used for an item for a given tree `height`.
+    fn zero_item(height: usize) -> Self::Item;
 
     /// Aggregates the given `items`.
-    fn merkle_hash<'a, I>(items: I) -> Self::Item
+    fn aggregate<'a, I>(items: I) -> Self::Item
     where
         Self::Item: 'a,
         I: IntoIterator<Item = &'a Self::Item>;
@@ -48,7 +47,7 @@ pub trait MerkleAggregator {
     archive_attr(derive(CheckBytes), doc(hidden))
 )]
 #[doc(hidden)]
-pub struct Node<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize> {
+pub struct Node<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
     hash: Option<A::Item>,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
     children: [Option<Box<Node<A, HEIGHT, ARITY>>>; ARITY],
@@ -56,7 +55,7 @@ pub struct Node<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize> {
 
 impl<A, const HEIGHT: usize, const ARITY: usize> Node<A, HEIGHT, ARITY>
 where
-    A: MerkleAggregator,
+    A: Aggregator,
 {
     const INIT: Option<Box<Node<A, HEIGHT, ARITY>>> = None;
 
@@ -68,8 +67,8 @@ where
     }
 
     fn compute_hash(&mut self, height: usize) {
-        let merkle_zero = A::zero_hash(height);
-        let hash = A::merkle_hash(self.children.iter().map(|c| match c {
+        let merkle_zero = A::zero_item(height);
+        let hash = A::aggregate(self.children.iter().map(|c| match c {
             None => &merkle_zero,
             Some(child) => child.hash.as_ref().unwrap(),
         }));
@@ -94,7 +93,7 @@ where
         I: IntoIterator<Item = &'a A::Item>,
     {
         if height == HEIGHT - 1 {
-            self.hash = Some(A::merkle_hash(items));
+            self.hash = Some(A::aggregate(items));
             return;
         }
 
@@ -119,10 +118,10 @@ where
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (A::Item, bool) {
         if height == HEIGHT - 1 {
-            let mut hash = Some(A::zero_hash(height));
+            let mut hash = Some(A::zero_item(height));
             mem::swap(&mut self.hash, &mut hash);
             return (
-                hash.expect("There should be an element at this position"),
+                hash.expect("There should be an item at this position"),
                 false,
             );
         }
@@ -169,18 +168,14 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     derive(Archive, Serialize, Deserialize),
     archive_attr(derive(CheckBytes))
 )]
-pub struct MerkleTree<
-    A: MerkleAggregator,
-    const HEIGHT: usize,
-    const ARITY: usize,
-> {
+pub struct Tree<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
     root: Node<A, HEIGHT, ARITY>,
     positions: BTreeSet<u64>,
     len: u64,
 }
 
-impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
-    MerkleTree<A, HEIGHT, ARITY>
+impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
+    Tree<A, HEIGHT, ARITY>
 {
     /// Create a new merkle tree.
     #[must_use]
@@ -207,7 +202,7 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
         }
     }
 
-    /// Remove and return the hash of the element at the given `position` in the
+    /// Remove and return the item of the leaf at the given `position` in the
     /// tree.
     pub fn remove(&mut self, position: u64) -> Option<A::Item> {
         if !self.positions.contains(&position) {
@@ -226,18 +221,15 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
         Some(hash)
     }
 
-    /// Returns the [`MerkleOpening`] for the given `position`.
-    pub fn opening(
-        &self,
-        position: u64,
-    ) -> Option<MerkleOpening<A, HEIGHT, ARITY>>
+    /// Returns the [`Opening`] for the given `position`.
+    pub fn opening(&self, position: u64) -> Option<Opening<A, HEIGHT, ARITY>>
     where
-        <A as MerkleAggregator>::Item: Clone,
+        <A as Aggregator>::Item: Clone,
     {
         if !self.positions.contains(&position) {
             return None;
         }
-        Some(MerkleOpening::new(self, position))
+        Some(Opening::new(self, position))
     }
 
     /// Get the root of the merkle tree.
@@ -274,14 +266,14 @@ mod tests {
     use super::*;
 
     struct TestAggregator;
-    impl MerkleAggregator for TestAggregator {
+    impl Aggregator for TestAggregator {
         type Item = u8;
 
-        fn zero_hash(_height: usize) -> Self::Item {
+        fn zero_item(_height: usize) -> Self::Item {
             0
         }
 
-        fn merkle_hash<'a, I>(items: I) -> Self::Item
+        fn aggregate<'a, I>(items: I) -> Self::Item
         where
             Self::Item: 'a,
             I: IntoIterator<Item = &'a Self::Item>,
@@ -297,7 +289,7 @@ mod tests {
         const HEIGHT: usize = 3;
         const ARITY: usize = 2;
 
-        let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
+        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
         tree.insert(5, [&42u8]);
         tree.insert(6, [&42u8]);
@@ -315,7 +307,7 @@ mod tests {
         const HEIGHT: usize = 3;
         const ARITY: usize = 2;
 
-        let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
+        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
         tree.insert(5, [&42u8]);
         tree.insert(6, [&42u8]);
@@ -344,7 +336,7 @@ mod tests {
         const HEIGHT: usize = 3;
         const ARITY: usize = 2;
 
-        let mut tree = MerkleTree::<TestAggregator, HEIGHT, ARITY>::new();
+        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
         tree.insert(tree.capacity(), [&42u8]);
     }

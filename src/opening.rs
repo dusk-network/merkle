@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{MerkleAggregator, MerkleTree, Node};
+use crate::{Aggregator, Node, Tree};
 
 use core::mem::MaybeUninit;
 use core::ptr;
@@ -21,30 +21,23 @@ use rkyv::{Archive, Deserialize, Serialize};
     archive_attr(derive(CheckBytes))
 )]
 #[allow(clippy::module_name_repetitions)]
-pub struct MerkleOpening<
-    A: MerkleAggregator,
-    const HEIGHT: usize,
-    const ARITY: usize,
-> {
+pub struct Opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
     // The root is included in the branch, and is kept at position (0, 0).
     branch: [[A::Item; ARITY]; HEIGHT],
     positions: [usize; HEIGHT],
 }
 
-impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
-    MerkleOpening<A, HEIGHT, ARITY>
+impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
+    Opening<A, HEIGHT, ARITY>
 {
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(
-        tree: &MerkleTree<A, HEIGHT, ARITY>,
-        position: u64,
-    ) -> Self
+    pub(crate) fn new(tree: &Tree<A, HEIGHT, ARITY>, position: u64) -> Self
     where
-        <A as MerkleAggregator>::Item: Clone,
+        <A as Aggregator>::Item: Clone,
     {
         let positions = [0; HEIGHT];
-        let branch = zero_array(|h| zero_array(|_| A::zero_hash(h)));
+        let branch = zero_array(|h| zero_array(|_| A::zero_item(h)));
 
         let mut opening = Self { branch, positions };
         fill_opening(&mut opening, &tree.root, HEIGHT, position);
@@ -52,13 +45,13 @@ impl<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>
     }
 }
 
-fn fill_opening<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>(
-    opening: &mut MerkleOpening<A, HEIGHT, ARITY>,
+fn fill_opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize>(
+    opening: &mut Opening<A, HEIGHT, ARITY>,
     node: &Node<A, HEIGHT, ARITY>,
     height: usize,
     position: u64,
 ) where
-    <A as MerkleAggregator>::Item: Clone,
+    <A as Aggregator>::Item: Clone,
 {
     // If we are at the leaf, we're already done.
     if height == HEIGHT - 1 {
@@ -88,11 +81,11 @@ fn fill_opening<A: MerkleAggregator, const HEIGHT: usize, const ARITY: usize>(
                 *hash = c
                     .hash
                     .as_ref()
-                    .expect("There should be a hash in the child")
+                    .expect("There should be a item in the child")
                     .clone();
             }
             None => {
-                *hash = A::zero_hash(height);
+                *hash = A::zero_item(height);
             }
         }
     }
