@@ -56,7 +56,23 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
 
     /// Verify the given item is the leaf of the opening, and that the opening
     /// is cryptographically correct.
-    pub fn verify<'a, I>(&self, items: I) -> bool
+    ///
+    /// Use [`Opening::verify_multiple`] to verify that multiple items are the
+    /// leaf of the opening.
+    pub fn verify<I>(&self, item: I) -> bool
+    where
+        A::Item: PartialEq,
+        I: Into<A::Item>,
+    {
+        self.verify_multiple(&[item.into()])
+    }
+
+    /// Verify the given items are the leaf of the opening, and that the opening
+    /// is cryptographically correct.
+    ///
+    /// Use [`Opening::verify`] to verify that a single item is the leaf of the
+    /// opening.
+    pub fn verify_multiple<'a, I>(&self, items: I) -> bool
     where
         A::Item: 'a + PartialEq,
         I: IntoIterator<Item = &'a A::Item>,
@@ -178,7 +194,7 @@ mod tests {
         let cap = tree.capacity();
 
         for i in 0..cap {
-            tree.insert(i, [&String::from(LETTERS[i as usize])]);
+            tree.insert(i, LETTERS[i as usize]);
         }
 
         for pos in 0..cap {
@@ -187,12 +203,12 @@ mod tests {
                 .expect("There must be an opening for an existing item");
 
             assert!(
-                opening.verify([&String::from(LETTERS[pos as usize])]),
+                opening.verify(LETTERS[pos as usize]),
                 "The opening should be for the item that was inserted at the given position"
             );
 
             assert!(
-                !opening.verify([&String::from(LETTERS[((pos + 1)%cap) as usize])]),
+                !opening.verify(LETTERS[((pos + 1)%cap) as usize]),
                 "The opening should *only* be for the item that was inserted at the given position"
             );
         }

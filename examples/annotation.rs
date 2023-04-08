@@ -114,10 +114,8 @@ fn main() {
 
         let block_height = rng.next_u64() % 1000;
 
-        let annotation = Annotation::from((note, block_height));
         let pos = rng.next_u64() % tree.capacity();
-
-        tree.insert(pos, [&annotation]);
+        tree.insert(pos, (note, block_height));
     }
 
     let elapsed = now.elapsed();

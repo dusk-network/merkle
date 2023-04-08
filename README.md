@@ -40,8 +40,8 @@ let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 // No elements have been inserted so the root is `None`.
 assert!(matches!(tree.root(), None));
 
-tree.insert(4, [&21u8]);
-tree.insert(7, [&21u8]);
+tree.insert(4, 21);
+tree.insert(7, 21);
 
 // After elements have been inserted, there will be a root.
 assert!(matches!(tree.root(), Some(root) if *root == 42));

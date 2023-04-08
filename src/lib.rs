@@ -27,7 +27,7 @@ pub use opening::*;
 /// A reducing function that takes a collection of items of a given type and
 /// returns one item of the same type.
 pub trait Aggregator {
-    /// The item processed by the aggregator.
+    /// The type of item processed by the aggregator.
     type Item;
 
     /// Returns the zero value to be used for an item for a given tree `height`.
@@ -38,6 +38,14 @@ pub trait Aggregator {
     where
         Self::Item: 'a,
         I: IntoIterator<Item = &'a Self::Item>;
+
+    /// Aggregates a single `item`.
+    fn aggregate_single<I>(item: I) -> Self::Item
+    where
+        I: Into<Self::Item>,
+    {
+        Self::aggregate(&[item.into()])
+    }
 }
 
 #[cfg_attr(
@@ -190,11 +198,33 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
         }
     }
 
-    /// Insert an `element` at the given `position` in the tree.
+    /// Insert a single `item` at the given `position` in the tree.
+    ///
+    /// To insert multiple items, use [`insert_multiple`]
     ///
     /// # Panics
     /// If `position >= capacity`.
-    pub fn insert<'a, I>(&mut self, position: u64, items: I)
+    ///
+    /// [`insert_multiple`]: Tree::insert_multiple
+    pub fn insert<I>(&mut self, position: u64, item: I)
+    where
+        I: Into<A::Item>,
+    {
+        self.root.insert(0, position, &[item.into()]);
+        if self.positions.insert(position) {
+            self.len += 1;
+        }
+    }
+
+    /// Insert multiple `items` at the given `position` in the tree.
+    ///
+    /// To insert a single item, use [`insert`]
+    ///
+    /// # Panics
+    /// If `position >= capacity`.
+    ///
+    /// [`insert`]: Tree::insert
+    pub fn insert_multiple<'a, I>(&mut self, position: u64, items: I)
     where
         A::Item: 'a,
         I: IntoIterator<Item = &'a A::Item>,
@@ -294,9 +324,9 @@ mod tests {
 
         let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
-        tree.insert(5, [&42u8]);
-        tree.insert(6, [&42u8]);
-        tree.insert(5, [&42u8]);
+        tree.insert(5, 42);
+        tree.insert(6, 42);
+        tree.insert(5, 42);
 
         assert_eq!(
             tree.len(),
@@ -312,9 +342,9 @@ mod tests {
 
         let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
-        tree.insert(5, [&42u8]);
-        tree.insert(6, [&42u8]);
-        tree.insert(5, [&42u8]);
+        tree.insert(5, 42);
+        tree.insert(6, 42);
+        tree.insert(5, 42);
 
         tree.remove(5);
         tree.remove(4);
@@ -341,6 +371,6 @@ mod tests {
 
         let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
 
-        tree.insert(tree.capacity(), [&42u8]);
+        tree.insert(tree.capacity(), 42);
     }
 }
