@@ -14,8 +14,8 @@ use dusk_merkle::{Aggregate, Tree as MerkleTree};
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
-const HEIGHT: usize = 17;
-const ARITY: usize = 4;
+const H: usize = 17;
+const A: usize = 4;
 
 struct Annotation {
     hash: Hash,
@@ -75,7 +75,7 @@ impl From<(Note, u64)> for Annotation {
     }
 }
 
-type Tree = MerkleTree<Annotation, HEIGHT, ARITY>;
+type Tree = MerkleTree<Annotation, H, A>;
 
 fn main() {
     let tree = &mut Tree::new(Annotation {

@@ -35,10 +35,10 @@ impl Aggregate for U8 {
     }
 }
 
-const HEIGHT: usize = 3;
-const ARITY: usize = 2;
+const H: usize = 3;
+const A: usize = 2;
 
-let mut tree = Tree::<U8, HEIGHT, ARITY>::new(U8(0));
+let mut tree = Tree::<U8, H, A>::new(U8(0));
 
 // No elements have been inserted so the root is as inserted.
 assert_eq!(tree.root(), &U8(0));
@@ -46,7 +46,7 @@ assert_eq!(tree.root(), &U8(0));
 tree.insert(4, 21);
 tree.insert(7, 21);
 
-// After elements have been inserted, theroot will change.
+// After elements have been inserted, the root will change.
 assert_eq!(tree.root(), &U8(42));
 ```
 

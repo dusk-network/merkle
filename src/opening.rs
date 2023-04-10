@@ -21,23 +21,21 @@ use rkyv::{Archive, Deserialize, Serialize};
     archive_attr(derive(CheckBytes))
 )]
 #[allow(clippy::module_name_repetitions)]
-pub struct Opening<T, const HEIGHT: usize, const ARITY: usize> {
+pub struct Opening<T, const H: usize, const A: usize> {
     // The root is included in the branch, and is kept at position (0, 0).
     root: T,
-    branch: [[Option<T>; ARITY]; HEIGHT],
-    positions: [usize; HEIGHT],
+    branch: [[Option<T>; A]; H],
+    positions: [usize; H],
 }
 
-impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
-    Opening<T, HEIGHT, ARITY>
-{
+impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<T, HEIGHT, ARITY>, position: u64) -> Self
+    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self
     where
         T: Clone,
     {
-        let positions = [0; HEIGHT];
+        let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
         let root = tree.root().clone();
 
@@ -59,7 +57,7 @@ impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
     {
         let mut item = item.into();
 
-        for h in (0..HEIGHT).rev() {
+        for h in (0..H).rev() {
             let level = &self.branch[h];
             let position = self.positions[h];
 
@@ -74,20 +72,20 @@ impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
     }
 }
 
-fn fill_opening<T, const HEIGHT: usize, const ARITY: usize>(
-    opening: &mut Opening<T, HEIGHT, ARITY>,
-    node: &Node<T, HEIGHT, ARITY>,
+fn fill_opening<T, const H: usize, const A: usize>(
+    opening: &mut Opening<T, H, A>,
+    node: &Node<T, H, A>,
     height: usize,
     position: u64,
 ) where
     T: Aggregate + Clone,
 {
-    if height == HEIGHT {
+    if height == H {
         return;
     }
 
     let (child_index, child_pos) =
-        Node::<T, HEIGHT, ARITY>::child_location(height, position);
+        Node::<T, H, A>::child_location(height, position);
     let child = node.children[child_index]
         .as_ref()
         .expect("There should be a child at this position");
@@ -146,10 +144,10 @@ mod tests {
         }
     }
 
-    const HEIGHT: usize = 4;
-    const ARITY: usize = 2;
+    const H: usize = 4;
+    const A: usize = 2;
 
-    type TestTree = Tree<String, HEIGHT, ARITY>;
+    type TestTree = Tree<String, H, A>;
 
     #[test]
     #[allow(clippy::cast_possible_truncation)]

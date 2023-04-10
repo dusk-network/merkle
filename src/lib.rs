@@ -41,25 +41,25 @@ pub trait Aggregate {
     archive_attr(derive(CheckBytes), doc(hidden))
 )]
 #[doc(hidden)]
-pub struct Node<T, const HEIGHT: usize, const ARITY: usize> {
+pub struct Node<T, const H: usize, const A: usize> {
     item: T,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    children: [Option<Box<Node<T, HEIGHT, ARITY>>>; ARITY],
+    children: [Option<Box<Node<T, H, A>>>; A],
 }
 
-impl<T, const HEIGHT: usize, const ARITY: usize> Node<T, HEIGHT, ARITY>
+impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
     T: Aggregate,
 {
-    const INIT: Option<Box<Node<T, HEIGHT, ARITY>>> = None;
+    const INIT: Option<Box<Node<T, H, A>>> = None;
 
     const fn new(item: T) -> Self {
-        debug_assert!(HEIGHT > 0, "Height must be larger than zero");
-        debug_assert!(ARITY > 0, "Arity must be larger than zero");
+        debug_assert!(H > 0, "Height must be larger than zero");
+        debug_assert!(A > 0, "Arity must be larger than zero");
 
         Self {
             item,
-            children: [Self::INIT; ARITY],
+            children: [Self::INIT; A],
         }
     }
 
@@ -73,10 +73,10 @@ where
     }
 
     fn child_location(height: usize, position: u64) -> (usize, u64) {
-        let child_cap = capacity(ARITY as u64, HEIGHT - height - 1);
+        let child_cap = capacity(A as u64, H - height - 1);
 
         // Casting to a `usize` should be fine, since the index should be within
-        // the `[0, ARITY[` bound anyway.
+        // the `[0, A[` bound anyway.
         #[allow(clippy::cast_possible_truncation)]
         let child_index = (position / child_cap) as usize;
         let child_pos = position % child_cap;
@@ -85,7 +85,7 @@ where
     }
 
     fn insert(&mut self, height: usize, position: u64, item: impl Into<T>) {
-        if height == HEIGHT {
+        if height == H {
             self.item = item.into();
             return;
         }
@@ -111,7 +111,7 @@ where
     /// # Panics
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
-        if height == HEIGHT {
+        if height == H {
             let mut item = T::aggregate(height, [].into_iter());
             mem::swap(&mut self.item, &mut item);
             return (item, false);
@@ -159,15 +159,13 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     derive(Archive, Serialize, Deserialize),
     archive_attr(derive(CheckBytes))
 )]
-pub struct Tree<T, const HEIGHT: usize, const ARITY: usize> {
-    root: Node<T, HEIGHT, ARITY>,
+pub struct Tree<T, const H: usize, const A: usize> {
+    root: Node<T, H, A>,
     positions: BTreeSet<u64>,
     len: u64,
 }
 
-impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
-    Tree<T, HEIGHT, ARITY>
-{
+impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
     pub const fn new(root: T) -> Self {
@@ -202,14 +200,14 @@ impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
         self.positions.remove(&position);
 
         if self.len == 0 {
-            self.root.item = T::aggregate(HEIGHT, [].into_iter());
+            self.root.item = T::aggregate(H, [].into_iter());
         }
 
         Some(item)
     }
 
     /// Returns the [`Opening`] for the given `position` if it exists.
-    pub fn opening(&self, position: u64) -> Option<Opening<T, HEIGHT, ARITY>>
+    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>>
     where
         T: Clone,
     {
@@ -244,7 +242,7 @@ impl<T: Aggregate, const HEIGHT: usize, const ARITY: usize>
     /// The maximum number of leaves in the tree, i.e. its capacity.
     #[must_use]
     pub const fn capacity(&self) -> u64 {
-        capacity(ARITY as u64, HEIGHT)
+        capacity(A as u64, H)
     }
 }
 
@@ -265,10 +263,10 @@ mod tests {
         }
     }
 
-    const HEIGHT: usize = 3;
-    const ARITY: usize = 2;
+    const H: usize = 3;
+    const A: usize = 2;
 
-    type TestTree = Tree<u8, HEIGHT, ARITY>;
+    type TestTree = Tree<u8, H, A>;
 
     #[test]
     fn tree_insertion() {
