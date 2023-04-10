@@ -51,7 +51,8 @@ impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
     T: Aggregate,
 {
-    const INIT: Option<Box<Node<T, H, A>>> = None;
+    const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
+    const INIT_ITEM: Option<T> = None;
 
     const fn new(item: T) -> Self {
         debug_assert!(H > 0, "Height must be larger than zero");
@@ -59,7 +60,7 @@ where
 
         Self {
             item,
-            children: [Self::INIT; A],
+            children: [Self::INIT_NODE; A],
         }
     }
 
@@ -94,8 +95,10 @@ where
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child =
-                Some(Box::new(Node::new(T::aggregate(height, [].into_iter()))));
+            *child = Some(Box::new(Node::new(T::aggregate(
+                height,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            ))));
         }
 
         // We just inserted a child at the given index.
@@ -112,7 +115,10 @@ where
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
         if height == H {
-            let mut item = T::aggregate(height, [].into_iter());
+            let mut item = T::aggregate(
+                height,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            );
             mem::swap(&mut self.item, &mut item);
             return (item, false);
         }
@@ -166,6 +172,8 @@ pub struct Tree<T, const H: usize, const A: usize> {
 }
 
 impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
+    const INIT_ITEM: Option<T> = None;
+
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
     pub const fn new(root: T) -> Self {
@@ -200,7 +208,10 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
         self.positions.remove(&position);
 
         if self.len == 0 {
-            self.root.item = T::aggregate(H, [].into_iter());
+            self.root.item = T::aggregate(
+                H,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            );
         }
 
         Some(item)
