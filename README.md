@@ -11,44 +11,44 @@ Height 2  o   x x   x
 
 ## Usage
 ```rust
-use dusk_merkle::{Tree, Aggregator};
+use dusk_merkle::{Tree, Aggregate};
 
-struct TestAggregator;
-impl Aggregator for TestAggregator {
-    type Item = u8;
+#[derive(Debug, PartialEq)]
+struct U8(u8);
 
-    fn zero_item(_height: usize) -> Self::Item {
-        0
+impl From<u8> for U8 {
+    fn from(n: u8) -> Self {
+        Self(n)
     }
+}
 
-    fn aggregate<'a, I>(items: I) -> Self::Item
+impl Aggregate for U8 {
+    fn aggregate<'a, I>(_: usize, items: I) -> Self
         where
-            Self::Item: 'a,
-            I: IntoIterator<Item = &'a Self::Item>,
+            Self: 'a,
+            I: ExactSizeIterator<Item = Option<&'a Self>>,
     {
-        items
-            .into_iter()
-            .fold(0, |acc, x| u8::wrapping_add(acc, *x))
+        items.into_iter().fold(U8(0), |acc, n| match n {
+            Some(n) => U8(acc.0 + n.0),
+            None => acc,
+        })
     }
 }
 
 const HEIGHT: usize = 3;
 const ARITY: usize = 2;
 
-let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
+let mut tree = Tree::<U8, HEIGHT, ARITY>::new(U8(0));
 
-// No elements have been inserted so the root is `None`.
-assert!(matches!(tree.root(), None));
+// No elements have been inserted so the root is as inserted.
+assert_eq!(tree.root(), &U8(0));
 
-tree.insert(4, [&21u8]);
-tree.insert(7, [&21u8]);
+tree.insert(4, 21);
+tree.insert(7, 21);
 
-// After elements have been inserted, there will be a root.
-assert!(matches!(tree.root(), Some(root) if *root == 42));
+// After elements have been inserted, theroot will change.
+assert_eq!(tree.root(), &U8(42));
 ```
-## Limitations
-The tree does not keep the pre-image of its leaves. As a consequence, leaves
-can only be queried for their hash.
 
 ## License
 

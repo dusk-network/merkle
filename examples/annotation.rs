@@ -9,12 +9,11 @@ use std::ops::Range;
 use std::time::Instant;
 
 use blake3::{Hash, Hasher};
-use dusk_merkle::{Aggregator, Tree as MerkleTree};
+use dusk_merkle::{Aggregate, Tree as MerkleTree};
 
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
-const HASH_LEN: usize = 32;
 const HEIGHT: usize = 17;
 const ARITY: usize = 4;
 
@@ -23,36 +22,17 @@ struct Annotation {
     bh_range: Option<Range<u64>>,
 }
 
-struct AnnotationAggregator;
-impl Aggregator for AnnotationAggregator {
-    type Item = Annotation;
-
-    fn zero_item(height: usize) -> Self::Item {
-        let mut hash = blake3::hash(&[0u8; HASH_LEN]);
-
-        for _ in 0..HEIGHT - height {
-            let mut hasher = Hasher::new();
-            for _ in 0..ARITY {
-                hasher.update(hash.as_bytes());
-            }
-            hash = hasher.finalize();
-        }
-
-        Self::Item {
-            hash,
-            bh_range: None,
-        }
-    }
-
-    fn aggregate<'a, I>(items: I) -> Self::Item
+impl Aggregate for Annotation {
+    fn aggregate<'a, I>(_: usize, items: I) -> Self
     where
-        Self::Item: 'a,
-        I: IntoIterator<Item = &'a Self::Item>,
+        Self: 'a,
+        I: ExactSizeIterator<Item = Option<&'a Self>>,
     {
         let mut hasher = Hasher::new();
         let mut bh_range = None;
 
-        for item in items {
+        // TODO don't use `flatten` and use a "zero item" instead?
+        for item in items.flatten() {
             hasher.update(item.hash.as_bytes());
 
             bh_range = match (bh_range, item.bh_range.as_ref()) {
@@ -67,7 +47,7 @@ impl Aggregator for AnnotationAggregator {
             };
         }
 
-        Self::Item {
+        Self {
             hash: hasher.finalize(),
             bh_range,
         }
@@ -95,10 +75,13 @@ impl From<(Note, u64)> for Annotation {
     }
 }
 
-type Tree = MerkleTree<AnnotationAggregator, HEIGHT, ARITY>;
+type Tree = MerkleTree<Annotation, HEIGHT, ARITY>;
 
 fn main() {
-    let tree = &mut Tree::new();
+    let tree = &mut Tree::new(Annotation {
+        hash: Hash::from([0; 32]),
+        bh_range: None,
+    });
     let rng = &mut StdRng::seed_from_u64(0xbeef);
 
     const PK: [u8; 32] = [42u8; 32];
@@ -114,10 +97,8 @@ fn main() {
 
         let block_height = rng.next_u64() % 1000;
 
-        let annotation = Annotation::from((note, block_height));
         let pos = rng.next_u64() % tree.capacity();
-
-        tree.insert(pos, [&annotation]);
+        tree.insert(pos, (note, block_height));
     }
 
     let elapsed = now.elapsed();
