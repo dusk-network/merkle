@@ -15,6 +15,7 @@ use bytecheck::CheckBytes;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// An opening for a given position in a merkle tree.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
