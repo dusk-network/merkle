@@ -166,7 +166,7 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     archive_attr(derive(CheckBytes))
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
-    root: Node<T, H, A>,
+    root: Option<Node<T, H, A>>,
     positions: BTreeSet<u64>,
     len: u64,
 }
@@ -176,9 +176,9 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
 
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
-    pub const fn new(root: T) -> Self {
+    pub const fn new() -> Self {
         Self {
-            root: Node::new(root),
+            root: None,
             positions: BTreeSet::new(),
             len: 0,
         }
@@ -189,7 +189,17 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// # Panics
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        self.root.insert(0, position, item);
+        if self.root.is_none() {
+            self.root = Some(Node::new(T::aggregate(
+                0,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            )));
+        }
+
+        // We just inserted a root node so we can unwrap.
+        let root = self.root.as_mut().unwrap();
+
+        root.insert(0, position, item);
         if self.positions.insert(position) {
             self.len += 1;
         }
@@ -197,21 +207,24 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
 
     /// Remove and return the item at the given `position` in the tree if it
     /// exists.
+    // Allowing for missing docs on panic, since panic is impossible. See
+    // comment below.
+    #[allow(clippy::missing_panics_doc)]
     pub fn remove(&mut self, position: u64) -> Option<T> {
         if !self.positions.contains(&position) {
             return None;
         }
 
-        let (item, _) = self.root.remove(0, position);
+        // If the tree has some position filled then it has a root node.
+        let root = self.root.as_mut().unwrap();
+
+        let (item, _) = root.remove(0, position);
 
         self.len -= 1;
         self.positions.remove(&position);
 
         if self.len == 0 {
-            self.root.item = T::aggregate(
-                H,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            );
+            self.root = None;
         }
 
         Some(item)
@@ -229,8 +242,10 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     }
 
     /// Get the root of the merkle tree.
-    pub fn root(&self) -> &T {
-        &self.root.item
+    ///
+    /// It is none if the tree is empty.
+    pub fn root(&self) -> Option<&T> {
+        self.root.as_ref().map(|r| &r.item)
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -281,7 +296,7 @@ mod tests {
 
     #[test]
     fn tree_insertion() {
-        let mut tree = TestTree::new(0);
+        let mut tree = TestTree::new();
 
         tree.insert(5, 42);
         tree.insert(6, 42);
@@ -296,7 +311,7 @@ mod tests {
 
     #[test]
     fn tree_deletion() {
-        let mut tree = TestTree::new(0);
+        let mut tree = TestTree::new();
 
         tree.insert(5, 42);
         tree.insert(6, 42);
@@ -313,17 +328,16 @@ mod tests {
 
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
-        assert_eq!(
-            *tree.root(),
-            0,
-            "Since the tree is empty the root should be the first passed element"
+        assert!(
+            matches!(tree.root(), None),
+            "Since the tree is empty the root should be `None`"
         );
     }
 
     #[test]
     #[should_panic]
     fn tree_insertion_out_of_bounds() {
-        let mut tree = TestTree::new(0);
+        let mut tree = TestTree::new();
         tree.insert(tree.capacity(), 42);
     }
 }

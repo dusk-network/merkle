@@ -36,14 +36,16 @@ impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
     {
         let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
-        let root = tree.root().clone();
+        let root = tree.root.as_ref().expect(
+            "The tree should have a root since it has a position filled",
+        );
 
         let mut opening = Self {
-            root,
+            root: root.item.clone(),
             branch,
             positions,
         };
-        fill_opening(&mut opening, &tree.root, 0, position);
+        fill_opening(&mut opening, root, 0, position);
 
         opening
     }
@@ -156,7 +158,7 @@ mod tests {
             'N', 'O', 'P',
         ];
 
-        let mut tree = TestTree::new(String::new());
+        let mut tree = TestTree::new();
         let cap = tree.capacity();
 
         for i in 0..cap {

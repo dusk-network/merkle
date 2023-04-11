@@ -38,16 +38,16 @@ impl Aggregate for U8 {
 const H: usize = 3;
 const A: usize = 2;
 
-let mut tree = Tree::<U8, H, A>::new(U8(0));
+let mut tree = Tree::<U8, H, A>::new();
 
-// No elements have been inserted so the root is as inserted.
-assert_eq!(tree.root(), &U8(0));
+// No elements have been inserted so the root is `None`.
+assert_eq!(tree.root(), None);
 
 tree.insert(4, 21);
 tree.insert(7, 21);
 
-// After elements have been inserted, the root will change.
-assert_eq!(tree.root(), &U8(42));
+// After elements have been inserted, the root will be `Some`.
+assert!(matches!(tree.root(), Some(n) if n == &U8(42)));
 ```
 
 ## License

@@ -78,10 +78,7 @@ impl From<(Note, u64)> for Annotation {
 type Tree = MerkleTree<Annotation, H, A>;
 
 fn main() {
-    let tree = &mut Tree::new(Annotation {
-        hash: Hash::from([0; 32]),
-        bh_range: None,
-    });
+    let tree = &mut Tree::new();
     let rng = &mut StdRng::seed_from_u64(0xbeef);
 
     const PK: [u8; 32] = [42u8; 32];
