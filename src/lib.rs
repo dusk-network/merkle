@@ -8,6 +8,7 @@
 #![no_std]
 #![deny(clippy::pedantic)]
 
+mod aggregate;
 mod opening;
 
 extern crate alloc;
@@ -22,17 +23,8 @@ use bytecheck::CheckBytes;
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
+pub use aggregate::*;
 pub use opening::*;
-
-/// A type that can be produced by aggregating multiple instances of itself, at
-/// certain heights of the tree.
-pub trait Aggregate {
-    /// Aggregate `items` to produce a single one at the given `height`.
-    fn aggregate<'a, I>(height: usize, items: I) -> Self
-    where
-        Self: 'a,
-        I: ExactSizeIterator<Item = Option<&'a Self>>;
-}
 
 #[cfg_attr(
     feature = "rkyv-impl",
