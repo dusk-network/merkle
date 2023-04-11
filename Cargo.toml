@@ -28,3 +28,4 @@ rkyv-impl = [
     "rkyv",
     "bytecheck"
 ]
+bench = []

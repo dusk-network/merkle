@@ -51,6 +51,18 @@ tree.insert(7, 21);
 assert!(matches!(tree.root(), Some(n) if n == &U8(42)));
 ```
 
+## Benchmarks
+
+An implementation of a Merkle tree using `blake3` as a hash is included with the
+crate under a feature with the same name. Benchmarks are also included and can
+be run using:
+
+```shell
+cargo bench --features=blake3,bench
+```
+
+This requires a nightly toolchain.
+
 ## License
 
 This project is licensed under the Mozilla Public License, version 2.0. See the

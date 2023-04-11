@@ -7,6 +7,10 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 #![deny(clippy::pedantic)]
+/* ***************************************** */
+#![cfg_attr(feature = "bench", feature(test))]
+#[cfg(feature = "bench")]
+extern crate test;
 
 mod aggregate;
 mod opening;

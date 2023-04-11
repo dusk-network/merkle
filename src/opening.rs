@@ -20,7 +20,6 @@ use rkyv::{Archive, Deserialize, Serialize};
     derive(Archive, Serialize, Deserialize),
     archive_attr(derive(CheckBytes))
 )]
-#[allow(clippy::module_name_repetitions)]
 pub struct Opening<T, const H: usize, const A: usize> {
     root: T,
     branch: [[Option<T>; A]; H],
