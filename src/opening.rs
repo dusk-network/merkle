@@ -22,7 +22,6 @@ use rkyv::{Archive, Deserialize, Serialize};
 )]
 #[allow(clippy::module_name_repetitions)]
 pub struct Opening<T, const H: usize, const A: usize> {
-    // The root is included in the branch, and is kept at position (0, 0).
     root: T,
     branch: [[Option<T>; A]; H],
     positions: [usize; H],
@@ -116,8 +115,8 @@ where
     unsafe { ptr::read(array_ptr.cast()) }
 }
 
-// [R, 0]                     0
-
+// R
+//
 // [H_ABCDEFGH, H_IJKLMNOP]   1
 // [H_IJKL, H_MNOP]           0
 // [H_IJ, H_KL]               1
