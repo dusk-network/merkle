@@ -12,7 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
 - Add `blake3` feature, implementing `Aggregate` for `blake3::Hash` [#11]
 
+### Fixed
+
+- Fix `CheckBytes` derivation in `Node` [#15]
+
 <!-- ISSUES -->
+[#15]: https://github.com/dusk-network/merkle/issues/15
 [#13]: https://github.com/dusk-network/merkle/issues/13
 [#11]: https://github.com/dusk-network/merkle/issues/11
 

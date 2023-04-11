@@ -23,9 +23,12 @@ use alloc::collections::BTreeSet;
 use core::mem;
 
 #[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
+use bytecheck::{CheckBytes, Error as BytecheckError};
 #[cfg(feature = "rkyv-impl")]
-use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
+use rkyv::{
+    ser::Serializer, validation::ArchiveContext, Archive, Deserialize,
+    Fallible, Serialize,
+};
 
 pub use aggregate::*;
 pub use opening::*;
@@ -35,12 +38,18 @@ pub use opening::*;
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
     archive(bound(serialize = "__S: Serializer")),
-    archive_attr(derive(CheckBytes), doc(hidden))
+    archive_attr(
+        derive(CheckBytes),
+        doc(hidden),
+        check_bytes(
+            bound = "__C: ArchiveContext, <__C as Fallible>::Error: BytecheckError"
+        )
+    )
 )]
 #[doc(hidden)]
 pub struct Node<T, const H: usize, const A: usize> {
     item: T,
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
+    #[cfg_attr(feature = "rkyv-impl", omit_bounds, archive_attr(omit_bounds))]
     children: [Option<Box<Node<T, H, A>>>; A],
 }
 
