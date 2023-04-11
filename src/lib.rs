@@ -30,6 +30,7 @@ use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 pub use aggregate::*;
 pub use opening::*;
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -156,6 +157,7 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
 }
 
 /// A sparse Merkle tree.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
