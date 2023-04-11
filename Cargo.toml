@@ -13,6 +13,7 @@ license = "MPL-2.0"
 [dependencies]
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.7", optional = true, default-features = false }
+blake3 = { version = "1", optional = true, default-features = false }
 
 [dev-dependencies]
 blake3 = "1"
