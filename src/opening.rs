@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Aggregator, Node, Tree};
+use crate::{Aggregate, Node, Tree};
 
 use core::mem::MaybeUninit;
 use core::ptr;
@@ -21,77 +21,72 @@ use rkyv::{Archive, Deserialize, Serialize};
     archive_attr(derive(CheckBytes))
 )]
 #[allow(clippy::module_name_repetitions)]
-pub struct Opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
-    // The root is included in the branch, and is kept at position (0, 0).
-    root: A::Item,
-    branch: [[A::Item; ARITY]; HEIGHT],
-    positions: [usize; HEIGHT],
+pub struct Opening<T, const H: usize, const A: usize> {
+    root: T,
+    branch: [[Option<T>; A]; H],
+    positions: [usize; H],
 }
 
-impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
-    Opening<A, HEIGHT, ARITY>
-{
+impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<A, HEIGHT, ARITY>, position: u64) -> Self
+    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self
     where
-        <A as Aggregator>::Item: Clone,
+        T: Clone,
     {
-        let positions = [0; HEIGHT];
-        let branch = zero_array(|h| zero_array(|_| A::zero_item(h)));
-        let root = tree
-            .root()
-            .expect("There must be a root of the tree")
-            .clone();
+        let positions = [0; H];
+        let branch = zero_array(|_| zero_array(|_| None));
+        let root = tree.root.as_ref().expect(
+            "The tree should have a root since it has a position filled",
+        );
 
         let mut opening = Self {
-            root,
+            root: root.item.clone(),
             branch,
             positions,
         };
-        fill_opening(&mut opening, &tree.root, 0, position);
+        fill_opening(&mut opening, root, 0, position);
 
         opening
     }
 
     /// Verify the given item is the leaf of the opening, and that the opening
     /// is cryptographically correct.
-    pub fn verify<'a, I>(&self, items: I) -> bool
+    pub fn verify(&self, item: impl Into<T>) -> bool
     where
-        A::Item: 'a + PartialEq,
-        I: IntoIterator<Item = &'a A::Item>,
+        T: PartialEq,
     {
-        let mut hash = A::aggregate(items);
+        let mut item = item.into();
 
-        for h in (0..HEIGHT).rev() {
+        for h in (0..H).rev() {
             let level = &self.branch[h];
             let position = self.positions[h];
 
-            if hash != level[position] {
+            if Some(item) != level[position] {
                 return false;
             }
 
-            hash = A::aggregate(&self.branch[h]);
+            item = T::aggregate(h, self.branch[h].iter().map(Option::as_ref));
         }
 
-        self.root == hash
+        self.root == item
     }
 }
 
-fn fill_opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize>(
-    opening: &mut Opening<A, HEIGHT, ARITY>,
-    node: &Node<A, HEIGHT, ARITY>,
+fn fill_opening<T, const H: usize, const A: usize>(
+    opening: &mut Opening<T, H, A>,
+    node: &Node<T, H, A>,
     height: usize,
     position: u64,
 ) where
-    <A as Aggregator>::Item: Clone,
+    T: Aggregate + Clone,
 {
-    if height == HEIGHT {
+    if height == H {
         return;
     }
 
     let (child_index, child_pos) =
-        Node::<A, HEIGHT, ARITY>::child_location(height, position);
+        Node::<T, H, A>::child_location(height, position);
     let child = node.children[child_index]
         .as_ref()
         .expect("There should be a child at this position");
@@ -101,16 +96,7 @@ fn fill_opening<A: Aggregator, const HEIGHT: usize, const ARITY: usize>(
     opening.branch[height]
         .iter_mut()
         .zip(&node.children)
-        .for_each(|(h, c)| {
-            *h = match c {
-                Some(c) => c
-                    .hash
-                    .as_ref()
-                    .expect("There should be an item in the child")
-                    .clone(),
-                None => A::zero_item(height),
-            }
-        });
+        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item.clone()));
     opening.positions[height] = child_index;
 }
 
@@ -131,8 +117,8 @@ where
     unsafe { ptr::read(array_ptr.cast()) }
 }
 
-// [R, 0]                     0
-
+// R
+//
 // [H_ABCDEFGH, H_IJKLMNOP]   1
 // [H_IJKL, H_MNOP]           0
 // [H_IJ, H_KL]               1
@@ -146,39 +132,37 @@ mod tests {
     use alloc::string::String;
 
     /// A simple aggregator that concatenates strings.
-    pub struct TestAggregator;
-    impl Aggregator for TestAggregator {
-        type Item = String;
-
-        fn zero_item(_height: usize) -> Self::Item {
-            String::new()
-        }
-
-        fn aggregate<'a, I>(items: I) -> Self::Item
+    impl Aggregate for String {
+        fn aggregate<'a, I>(_: usize, items: I) -> Self
         where
-            Self::Item: 'a,
-            I: IntoIterator<Item = &'a Self::Item>,
+            Self: 'a,
+            I: ExactSizeIterator<Item = Option<&'a Self>>,
         {
-            items.into_iter().fold(String::new(), |acc, x| acc + x)
+            items.into_iter().fold(String::new(), |acc, s| match s {
+                Some(s) => acc + s,
+                None => acc,
+            })
         }
     }
+
+    const H: usize = 4;
+    const A: usize = 2;
+
+    type TestTree = Tree<String, H, A>;
 
     #[test]
     #[allow(clippy::cast_possible_truncation)]
     fn opening_verify() {
-        const HEIGHT: usize = 4;
-        const ARITY: usize = 2;
-
         const LETTERS: &[char] = &[
             'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
             'N', 'O', 'P',
         ];
 
-        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
+        let mut tree = TestTree::new();
         let cap = tree.capacity();
 
         for i in 0..cap {
-            tree.insert(i, [&String::from(LETTERS[i as usize])]);
+            tree.insert(i, LETTERS[i as usize]);
         }
 
         for pos in 0..cap {
@@ -187,12 +171,12 @@ mod tests {
                 .expect("There must be an opening for an existing item");
 
             assert!(
-                opening.verify([&String::from(LETTERS[pos as usize])]),
+                opening.verify(LETTERS[pos as usize]),
                 "The opening should be for the item that was inserted at the given position"
             );
 
             assert!(
-                !opening.verify([&String::from(LETTERS[((pos + 1)%cap) as usize])]),
+                !opening.verify(LETTERS[((pos + 1)%cap) as usize]),
                 "The opening should *only* be for the item that was inserted at the given position"
             );
         }

@@ -24,20 +24,14 @@ use rkyv::{ser::Serializer, Archive, Deserialize, Serialize};
 
 pub use opening::*;
 
-/// A reducing function that takes a collection of items of a given type and
-/// returns one item of the same type.
-pub trait Aggregator {
-    /// The item processed by the aggregator.
-    type Item;
-
-    /// Returns the zero value to be used for an item for a given tree `height`.
-    fn zero_item(height: usize) -> Self::Item;
-
-    /// Aggregates the given `items`.
-    fn aggregate<'a, I>(items: I) -> Self::Item
+/// A type that can be produced by aggregating multiple instances of itself, at
+/// certain heights of the tree.
+pub trait Aggregate {
+    /// Aggregate `items` to produce a single one at the given `height`.
+    fn aggregate<'a, I>(height: usize, items: I) -> Self
     where
-        Self::Item: 'a,
-        I: IntoIterator<Item = &'a Self::Item>;
+        Self: 'a,
+        I: ExactSizeIterator<Item = Option<&'a Self>>;
 }
 
 #[cfg_attr(
@@ -47,42 +41,43 @@ pub trait Aggregator {
     archive_attr(derive(CheckBytes), doc(hidden))
 )]
 #[doc(hidden)]
-pub struct Node<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
-    hash: Option<A::Item>,
+pub struct Node<T, const H: usize, const A: usize> {
+    item: T,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds)]
-    children: [Option<Box<Node<A, HEIGHT, ARITY>>>; ARITY],
+    children: [Option<Box<Node<T, H, A>>>; A],
 }
 
-impl<A, const HEIGHT: usize, const ARITY: usize> Node<A, HEIGHT, ARITY>
+impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
-    A: Aggregator,
+    T: Aggregate,
 {
-    const INIT: Option<Box<Node<A, HEIGHT, ARITY>>> = None;
+    const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
+    const INIT_ITEM: Option<T> = None;
 
-    const fn new() -> Self {
-        debug_assert!(HEIGHT > 0, "Height must be larger than zero");
-        debug_assert!(ARITY > 0, "Arity must be larger than zero");
+    const fn new(item: T) -> Self {
+        debug_assert!(H > 0, "Height must be larger than zero");
+        debug_assert!(A > 0, "Arity must be larger than zero");
 
         Self {
-            hash: None,
-            children: [Self::INIT; ARITY],
+            item,
+            children: [Self::INIT_NODE; A],
         }
     }
 
-    fn compute_hash(&mut self, height: usize) {
-        let merkle_zero = A::zero_item(height);
-        let hash = A::aggregate(self.children.iter().map(|c| match c {
-            None => &merkle_zero,
-            Some(child) => child.hash.as_ref().unwrap(),
-        }));
-        self.hash = Some(hash);
+    fn compute_item(&mut self, height: usize) {
+        self.item = T::aggregate(
+            height,
+            self.children
+                .iter()
+                .map(|node| node.as_ref().map(|node| &node.item)),
+        );
     }
 
     fn child_location(height: usize, position: u64) -> (usize, u64) {
-        let child_cap = capacity(ARITY as u64, HEIGHT - height - 1);
+        let child_cap = capacity(A as u64, H - height - 1);
 
         // Casting to a `usize` should be fine, since the index should be within
-        // the `[0, ARITY[` bound anyway.
+        // the `[0, A[` bound anyway.
         #[allow(clippy::cast_possible_truncation)]
         let child_index = (position / child_cap) as usize;
         let child_pos = position % child_cap;
@@ -90,13 +85,9 @@ where
         (child_index, child_pos)
     }
 
-    fn insert<'a, I>(&mut self, height: usize, position: u64, items: I)
-    where
-        A::Item: 'a,
-        I: IntoIterator<Item = &'a A::Item>,
-    {
-        if height == HEIGHT {
-            self.hash = Some(A::aggregate(items));
+    fn insert(&mut self, height: usize, position: u64, item: impl Into<T>) {
+        if height == H {
+            self.item = item.into();
             return;
         }
 
@@ -104,29 +95,32 @@ where
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child = Some(Box::new(Node::new()));
+            *child = Some(Box::new(Node::new(T::aggregate(
+                height,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            ))));
         }
 
         // We just inserted a child at the given index.
         let child = self.children[child_index].as_mut().unwrap();
-        Self::insert(child, height + 1, child_pos, items);
+        Self::insert(child, height + 1, child_pos, item);
 
-        self.compute_hash(height);
+        self.compute_item(height);
     }
 
-    /// Returns the hash of the removed element, together with if there are any
-    /// siblings left in the branch.
+    /// Returns the removed element, together with if there are any siblings
+    /// left in the branch.
     ///
     /// # Panics
     /// If an element does not exist at the given position.
-    fn remove(&mut self, height: usize, position: u64) -> (A::Item, bool) {
-        if height == HEIGHT {
-            let mut hash = Some(A::zero_item(height));
-            mem::swap(&mut self.hash, &mut hash);
-            return (
-                hash.expect("There should be an item at this position"),
-                false,
+    fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
+        if height == H {
+            let mut item = T::aggregate(
+                height,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
             );
+            mem::swap(&mut self.item, &mut item);
+            return (item, false);
         }
 
         let (child_index, child_pos) = Self::child_location(height, position);
@@ -134,7 +128,7 @@ where
         let child = self.children[child_index]
             .as_mut()
             .expect("There should be a child at this position");
-        let (removed_hash, child_has_children) =
+        let (removed_item, child_has_children) =
             Self::remove(child, height + 1, child_pos);
 
         if !child_has_children {
@@ -150,10 +144,10 @@ where
         }
 
         if has_children {
-            self.compute_hash(height);
+            self.compute_item(height);
         }
 
-        (removed_hash, has_children)
+        (removed_item, has_children)
     }
 }
 
@@ -171,63 +165,75 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     derive(Archive, Serialize, Deserialize),
     archive_attr(derive(CheckBytes))
 )]
-pub struct Tree<A: Aggregator, const HEIGHT: usize, const ARITY: usize> {
-    root: Node<A, HEIGHT, ARITY>,
+pub struct Tree<T, const H: usize, const A: usize> {
+    root: Option<Node<T, H, A>>,
     positions: BTreeSet<u64>,
     len: u64,
 }
 
-impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
-    Tree<A, HEIGHT, ARITY>
-{
-    /// Create a new merkle tree.
+impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
+    const INIT_ITEM: Option<T> = None;
+
+    /// Create a new merkle tree with the given initial `root`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            root: Node::new(),
+            root: None,
             positions: BTreeSet::new(),
             len: 0,
         }
     }
 
-    /// Insert an `element` at the given `position` in the tree.
+    /// Insert an `item` at the given `position` in the tree.
     ///
     /// # Panics
     /// If `position >= capacity`.
-    pub fn insert<'a, I>(&mut self, position: u64, items: I)
-    where
-        A::Item: 'a,
-        I: IntoIterator<Item = &'a A::Item>,
-    {
-        self.root.insert(0, position, items);
+    pub fn insert(&mut self, position: u64, item: impl Into<T>) {
+        if self.root.is_none() {
+            self.root = Some(Node::new(T::aggregate(
+                0,
+                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
+            )));
+        }
+
+        // We just inserted a root node so we can unwrap.
+        let root = self.root.as_mut().unwrap();
+
+        root.insert(0, position, item);
         if self.positions.insert(position) {
             self.len += 1;
         }
     }
 
-    /// Remove and return the item of the leaf at the given `position` in the
-    /// tree.
-    pub fn remove(&mut self, position: u64) -> Option<A::Item> {
+    /// Remove and return the item at the given `position` in the tree if it
+    /// exists.
+    // Allowing for missing docs on panic, since panic is impossible. See
+    // comment below.
+    #[allow(clippy::missing_panics_doc)]
+    pub fn remove(&mut self, position: u64) -> Option<T> {
         if !self.positions.contains(&position) {
             return None;
         }
 
-        let (hash, _) = self.root.remove(0, position);
+        // If the tree has some position filled then it has a root node.
+        let root = self.root.as_mut().unwrap();
+
+        let (item, _) = root.remove(0, position);
 
         self.len -= 1;
         self.positions.remove(&position);
 
         if self.len == 0 {
-            self.root.hash = None;
+            self.root = None;
         }
 
-        Some(hash)
+        Some(item)
     }
 
-    /// Returns the [`Opening`] for the given `position`.
-    pub fn opening(&self, position: u64) -> Option<Opening<A, HEIGHT, ARITY>>
+    /// Returns the [`Opening`] for the given `position` if it exists.
+    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>>
     where
-        <A as Aggregator>::Item: Clone,
+        T: Clone,
     {
         if !self.positions.contains(&position) {
             return None;
@@ -236,8 +242,10 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
     }
 
     /// Get the root of the merkle tree.
-    pub fn root(&self) -> Option<&A::Item> {
-        self.root.hash.as_ref()
+    ///
+    /// It is none if the tree is empty.
+    pub fn root(&self) -> Option<&T> {
+        self.root.as_ref().map(|r| &r.item)
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -260,7 +268,7 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
     /// The maximum number of leaves in the tree, i.e. its capacity.
     #[must_use]
     pub const fn capacity(&self) -> u64 {
-        capacity(ARITY as u64, HEIGHT)
+        capacity(A as u64, H)
     }
 }
 
@@ -268,35 +276,31 @@ impl<A: Aggregator, const HEIGHT: usize, const ARITY: usize>
 mod tests {
     use super::*;
 
-    struct TestAggregator;
-    impl Aggregator for TestAggregator {
-        type Item = u8;
-
-        fn zero_item(_height: usize) -> Self::Item {
-            0
-        }
-
-        fn aggregate<'a, I>(items: I) -> Self::Item
+    impl Aggregate for u8 {
+        fn aggregate<'a, I>(_: usize, items: I) -> Self
         where
-            Self::Item: 'a,
-            I: IntoIterator<Item = &'a Self::Item>,
+            Self: 'a,
+            I: ExactSizeIterator<Item = Option<&'a Self>>,
         {
-            items
-                .into_iter()
-                .fold(0, |acc, x| u8::wrapping_add(acc, *x))
+            items.into_iter().fold(0, |acc, n| match n {
+                Some(n) => acc + n,
+                None => acc,
+            })
         }
     }
 
+    const H: usize = 3;
+    const A: usize = 2;
+
+    type TestTree = Tree<u8, H, A>;
+
     #[test]
     fn tree_insertion() {
-        const HEIGHT: usize = 3;
-        const ARITY: usize = 2;
+        let mut tree = TestTree::new();
 
-        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
-
-        tree.insert(5, [&42u8]);
-        tree.insert(6, [&42u8]);
-        tree.insert(5, [&42u8]);
+        tree.insert(5, 42);
+        tree.insert(6, 42);
+        tree.insert(5, 42);
 
         assert_eq!(
             tree.len(),
@@ -307,14 +311,11 @@ mod tests {
 
     #[test]
     fn tree_deletion() {
-        const HEIGHT: usize = 3;
-        const ARITY: usize = 2;
+        let mut tree = TestTree::new();
 
-        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
-
-        tree.insert(5, [&42u8]);
-        tree.insert(6, [&42u8]);
-        tree.insert(5, [&42u8]);
+        tree.insert(5, 42);
+        tree.insert(6, 42);
+        tree.insert(5, 42);
 
         tree.remove(5);
         tree.remove(4);
@@ -336,11 +337,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn tree_insertion_out_of_bounds() {
-        const HEIGHT: usize = 3;
-        const ARITY: usize = 2;
-
-        let mut tree = Tree::<TestAggregator, HEIGHT, ARITY>::new();
-
-        tree.insert(tree.capacity(), [&42u8]);
+        let mut tree = TestTree::new();
+        tree.insert(tree.capacity(), 42);
     }
 }
