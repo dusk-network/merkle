@@ -35,6 +35,7 @@ impl Aggregate for U8 {
     }
 }
 
+// Set the height and arity of the tree. 
 const H: usize = 3;
 const A: usize = 2;
 
