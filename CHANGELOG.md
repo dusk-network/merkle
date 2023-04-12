@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fix `CheckBytes` derivation in `Node` [#15]
 
+### Removed
+
+- Remove `len` field from the `Tree` structure
+
 <!-- ISSUES -->
 [#15]: https://github.com/dusk-network/merkle/issues/15
 [#13]: https://github.com/dusk-network/merkle/issues/13

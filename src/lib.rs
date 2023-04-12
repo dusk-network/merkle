@@ -169,7 +169,6 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
 pub struct Tree<T, const H: usize, const A: usize> {
     root: Node<T, H, A>,
     positions: BTreeSet<u64>,
-    len: u64,
 }
 
 impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
@@ -179,7 +178,6 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
         Self {
             root: Node::new(T::NULL),
             positions: BTreeSet::new(),
-            len: 0,
         }
     }
 
@@ -189,27 +187,20 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
         self.root.insert(0, position, item);
-        if self.positions.insert(position) {
-            self.len += 1;
-        }
+        self.positions.insert(position);
     }
 
     /// Remove and return the item at the given `position` in the tree if it
     /// exists.
-    // Allowing for missing docs on panic, since panic is impossible. See
-    // comment below.
-    #[allow(clippy::missing_panics_doc)]
     pub fn remove(&mut self, position: u64) -> Option<T> {
         if !self.positions.contains(&position) {
             return None;
         }
 
         let (item, _) = self.root.remove(0, position);
-
-        self.len -= 1;
         self.positions.remove(&position);
 
-        if self.len == 0 {
+        if self.positions.is_empty() {
             self.root.item = T::NULL;
         }
 
@@ -242,7 +233,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// Returns the number of elements that have been inserted into the tree.
     #[must_use]
     pub fn len(&self) -> u64 {
-        self.len
+        self.positions.len() as u64
     }
 
     /// Returns `true` if the tree is empty.
