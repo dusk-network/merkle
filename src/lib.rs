@@ -167,7 +167,7 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     archive_attr(derive(CheckBytes))
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
-    root: Option<Node<T, H, A>>,
+    root: Node<T, H, A>,
     positions: BTreeSet<u64>,
     len: u64,
 }
@@ -177,7 +177,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            root: None,
+            root: Node::new(T::NULL),
             positions: BTreeSet::new(),
             len: 0,
         }
@@ -188,14 +188,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// # Panics
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        if self.root.is_none() {
-            self.root = Some(Node::new(T::aggregate([T::NULL; A].iter())));
-        }
-
-        // We just inserted a root node so we can unwrap.
-        let root = self.root.as_mut().unwrap();
-
-        root.insert(0, position, item);
+        self.root.insert(0, position, item);
         if self.positions.insert(position) {
             self.len += 1;
         }
@@ -211,16 +204,13 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
             return None;
         }
 
-        // If the tree has some position filled then it has a root node.
-        let root = self.root.as_mut().unwrap();
-
-        let (item, _) = root.remove(0, position);
+        let (item, _) = self.root.remove(0, position);
 
         self.len -= 1;
         self.positions.remove(&position);
 
         if self.len == 0 {
-            self.root = None;
+            self.root.item = T::NULL;
         }
 
         Some(item)
@@ -240,8 +230,8 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// Get the root of the merkle tree.
     ///
     /// It is none if the tree is empty.
-    pub fn root(&self) -> Option<&T> {
-        self.root.as_ref().map(|r| &r.item)
+    pub fn root(&self) -> &T {
+        &self.root.item
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -323,9 +313,10 @@ mod tests {
 
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
-        assert!(
-            matches!(tree.root(), None),
-            "Since the tree is empty the root should be `None`"
+        assert_eq!(
+            tree.root(),
+            &u8::NULL,
+            "Since the tree is empty the root should be the null item"
         );
     }
 

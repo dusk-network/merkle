@@ -36,9 +36,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
     {
         let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
-        let root = tree.root.as_ref().expect(
-            "The tree should have a root since it has a position filled",
-        );
+        let root = &tree.root;
 
         let mut opening = Self {
             root: root.item.clone(),

@@ -40,14 +40,14 @@ const A: usize = 2;
 
 let mut tree = Tree::<U8, H, A>::new();
 
-// No elements have been inserted so the root is `None`.
-assert_eq!(tree.root(), None);
+// No elements have been inserted so the root is U8::NULL.
+assert_eq!(tree.root(), &U8::NULL);
 
 tree.insert(4, 21);
 tree.insert(7, 21);
 
 // After elements have been inserted, the root will be `Some`.
-assert!(matches!(tree.root(), Some(n) if n == &U8(42)));
+assert_eq!(tree.root(), &U8(42));
 ```
 
 ## Benchmarks
