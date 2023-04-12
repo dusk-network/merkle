@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Aggregate::NULL` associated constant
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
 - Add `blake3` feature, implementing `Aggregate` for `blake3::Hash` [#11]
 

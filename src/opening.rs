@@ -66,7 +66,13 @@ impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
                 return false;
             }
 
-            item = T::aggregate(h, self.branch[h].iter().map(Option::as_ref));
+            let null = T::NULL;
+
+            item = T::aggregate(
+                self.branch[h]
+                    .iter()
+                    .map(|item| item.as_ref().unwrap_or(&null)),
+            );
         }
 
         self.root == item
@@ -133,15 +139,14 @@ mod tests {
 
     /// A simple aggregator that concatenates strings.
     impl Aggregate for String {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+        const NULL: Self = String::new();
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: ExactSizeIterator<Item = &'a Self>,
         {
-            items.into_iter().fold(String::new(), |acc, s| match s {
-                Some(s) => acc + s,
-                None => acc,
-            })
+            items.into_iter().fold(Self::NULL, |acc, s| acc + s)
         }
     }
 

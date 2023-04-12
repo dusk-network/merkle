@@ -7,11 +7,14 @@
 /// A type that can be produced by aggregating multiple instances of itself, at
 /// certain heights of the tree.
 pub trait Aggregate {
-    /// Aggregate `items` to produce a single one at the given `height`.
-    fn aggregate<'a, I>(height: usize, items: I) -> Self
+    /// A "null" instance of the item, used when there is nothing to aggregate.
+    const NULL: Self;
+
+    /// Aggregate `items` to produce a single one.
+    fn aggregate<'a, I>(items: I) -> Self
     where
         Self: 'a,
-        I: ExactSizeIterator<Item = Option<&'a Self>>;
+        I: ExactSizeIterator<Item = &'a Self>;
 }
 
 #[cfg(feature = "blake3")]
@@ -20,17 +23,16 @@ mod blake {
     use blake3::{Hash, Hasher};
 
     impl Aggregate for Hash {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+        const NULL: Self = Hash::from_bytes([0u8; 32]);
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: ExactSizeIterator<Item = &'a Self>,
         {
             let mut hasher = Hasher::new();
             for item in items {
-                match item {
-                    Some(item) => hasher.update(item.as_bytes()),
-                    None => hasher.update(&[0u8; 32]),
-                };
+                hasher.update(item.as_bytes());
             }
             hasher.finalize()
         }

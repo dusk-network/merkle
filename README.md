@@ -23,15 +23,14 @@ impl From<u8> for U8 {
 }
 
 impl Aggregate for U8 {
-    fn aggregate<'a, I>(_: usize, items: I) -> Self
+    const NULL: Self = Self(0);
+    
+    fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: ExactSizeIterator<Item = &'a Self>,
     {
-        items.into_iter().fold(U8(0), |acc, n| match n {
-            Some(n) => U8(acc.0 + n.0),
-            None => acc,
-        })
+        items.into_iter().fold(U8(0), |acc, n| U8(acc.0 + n.0))
     }
 }
 

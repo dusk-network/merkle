@@ -23,16 +23,20 @@ struct Annotation {
 }
 
 impl Aggregate for Annotation {
-    fn aggregate<'a, I>(_: usize, items: I) -> Self
+    const NULL: Self = Self {
+        hash: Hash::from_bytes([0u8; 32]),
+        bh_range: None,
+    };
+
+    fn aggregate<'a, I>(items: I) -> Self
     where
         Self: 'a,
-        I: ExactSizeIterator<Item = Option<&'a Self>>,
+        I: ExactSizeIterator<Item = &'a Self>,
     {
         let mut hasher = Hasher::new();
         let mut bh_range = None;
 
-        // TODO don't use `flatten` and use a "zero item" instead?
-        for item in items.flatten() {
+        for item in items {
             hasher.update(item.hash.as_bytes());
 
             bh_range = match (bh_range, item.bh_range.as_ref()) {

@@ -58,7 +58,6 @@ where
     T: Aggregate,
 {
     const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
-    const INIT_ITEM: Option<T> = None;
 
     const fn new(item: T) -> Self {
         debug_assert!(H > 0, "Height must be larger than zero");
@@ -70,12 +69,13 @@ where
         }
     }
 
-    fn compute_item(&mut self, height: usize) {
+    fn compute_item(&mut self) {
+        let null = T::NULL;
+
         self.item = T::aggregate(
-            height,
             self.children
                 .iter()
-                .map(|node| node.as_ref().map(|node| &node.item)),
+                .map(|node| node.as_ref().map_or(&null, |node| &node.item)),
         );
     }
 
@@ -101,17 +101,14 @@ where
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child = Some(Box::new(Node::new(T::aggregate(
-                height,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            ))));
+            *child = Some(Box::new(Node::new(T::NULL)));
         }
 
         // We just inserted a child at the given index.
         let child = self.children[child_index].as_mut().unwrap();
         Self::insert(child, height + 1, child_pos, item);
 
-        self.compute_item(height);
+        self.compute_item();
     }
 
     /// Returns the removed element, together with if there are any siblings
@@ -121,10 +118,7 @@ where
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
         if height == H {
-            let mut item = T::aggregate(
-                height,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            );
+            let mut item = T::NULL;
             mem::swap(&mut self.item, &mut item);
             return (item, false);
         }
@@ -150,7 +144,7 @@ where
         }
 
         if has_children {
-            self.compute_item(height);
+            self.compute_item();
         }
 
         (removed_item, has_children)
@@ -179,8 +173,6 @@ pub struct Tree<T, const H: usize, const A: usize> {
 }
 
 impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
-    const INIT_ITEM: Option<T> = None;
-
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
     pub const fn new() -> Self {
@@ -197,10 +189,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
         if self.root.is_none() {
-            self.root = Some(Node::new(T::aggregate(
-                0,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            )));
+            self.root = Some(Node::new(T::aggregate([T::NULL; A].iter())));
         }
 
         // We just inserted a root node so we can unwrap.
@@ -284,15 +273,14 @@ mod tests {
     use super::*;
 
     impl Aggregate for u8 {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+        const NULL: Self = 0;
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: ExactSizeIterator<Item = &'a Self>,
         {
-            items.into_iter().fold(0, |acc, n| match n {
-                Some(n) => acc + n,
-                None => acc,
-            })
+            items.into_iter().sum()
         }
     }
 
