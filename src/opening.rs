@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Aggregate, Node, Tree};
+use crate::{Aggregate, Node, Tree, TreePosition};
 
 use core::mem::MaybeUninit;
 use core::ptr;
@@ -30,7 +30,10 @@ pub struct Opening<T, const H: usize, const A: usize> {
 impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self
+    pub(crate) fn new(
+        tree: &Tree<T, H, A>,
+        position: &TreePosition<H, A>,
+    ) -> Self
     where
         T: Clone,
     {
@@ -81,7 +84,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     opening: &mut Opening<T, H, A>,
     node: &Node<T, H, A>,
     height: usize,
-    position: u64,
+    position: &TreePosition<H, A>,
 ) where
     T: Aggregate + Clone,
 {
@@ -89,13 +92,12 @@ fn fill_opening<T, const H: usize, const A: usize>(
         return;
     }
 
-    let (child_index, child_pos) =
-        Node::<T, H, A>::child_location(height, position);
+    let child_index = position.indices()[height];
     let child = node.children[child_index]
         .as_ref()
         .expect("There should be a child at this position");
 
-    fill_opening(opening, child, height + 1, child_pos);
+    fill_opening(opening, child, height + 1, position);
 
     opening.branch[height]
         .iter_mut()
@@ -162,24 +164,24 @@ mod tests {
         ];
 
         let mut tree = TestTree::new();
-        let cap = tree.capacity();
+        let cap = A.pow(H as u32);
 
-        for i in 0..cap {
-            tree.insert(i, LETTERS[i as usize]);
+        for (i, l) in LETTERS.iter().enumerate() {
+            tree.insert(i, *l);
         }
 
-        for pos in 0..cap {
+        for (i, _) in LETTERS.iter().enumerate() {
             let opening = tree
-                .opening(pos)
+                .opening(i)
                 .expect("There must be an opening for an existing item");
 
             assert!(
-                opening.verify(LETTERS[pos as usize]),
+                opening.verify(LETTERS[i]),
                 "The opening should be for the item that was inserted at the given position"
             );
 
             assert!(
-                !opening.verify(LETTERS[((pos + 1)%cap) as usize]),
+                !opening.verify(LETTERS[((i + 1)%cap)]),
                 "The opening should *only* be for the item that was inserted at the given position"
             );
         }

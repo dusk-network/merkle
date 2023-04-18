@@ -88,6 +88,7 @@ fn main() {
     const PK: [u8; 32] = [42u8; 32];
     const NOTES_NUM: usize = 1000000;
 
+    let tree_capacity = A.pow(H as u32) as u64;
     let now = Instant::now();
 
     for _ in 0..NOTES_NUM {
@@ -98,7 +99,7 @@ fn main() {
 
         let block_height = rng.next_u64() % 1000;
 
-        let pos = rng.next_u64() % tree.capacity();
+        let pos = rng.next_u64() % tree_capacity;
         tree.insert(pos, (note, block_height));
     }
 

@@ -14,6 +14,7 @@ extern crate test;
 
 mod aggregate;
 mod opening;
+mod position;
 
 extern crate alloc;
 
@@ -32,6 +33,7 @@ use rkyv::{
 
 pub use aggregate::*;
 pub use opening::*;
+pub use position::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -79,25 +81,18 @@ where
         );
     }
 
-    fn child_location(height: usize, position: u64) -> (usize, u64) {
-        let child_cap = capacity(A as u64, H - height - 1);
-
-        // Casting to a `usize` should be fine, since the index should be within
-        // the `[0, A[` bound anyway.
-        #[allow(clippy::cast_possible_truncation)]
-        let child_index = (position / child_cap) as usize;
-        let child_pos = position % child_cap;
-
-        (child_index, child_pos)
-    }
-
-    fn insert(&mut self, height: usize, position: u64, item: impl Into<T>) {
+    fn insert(
+        &mut self,
+        height: usize,
+        position: &TreePosition<H, A>,
+        item: impl Into<T>,
+    ) {
         if height == H {
             self.item = item.into();
             return;
         }
 
-        let (child_index, child_pos) = Self::child_location(height, position);
+        let child_index = position.indices()[height];
 
         let child = &mut self.children[child_index];
         if child.is_none() {
@@ -106,7 +101,7 @@ where
 
         // We just inserted a child at the given index.
         let child = self.children[child_index].as_mut().unwrap();
-        Self::insert(child, height + 1, child_pos, item);
+        Self::insert(child, height + 1, position, item);
 
         self.compute_item();
     }
@@ -116,20 +111,24 @@ where
     ///
     /// # Panics
     /// If an element does not exist at the given position.
-    fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
+    fn remove(
+        &mut self,
+        height: usize,
+        position: &TreePosition<H, A>,
+    ) -> (T, bool) {
         if height == H {
             let mut item = T::NULL;
             mem::swap(&mut self.item, &mut item);
             return (item, false);
         }
 
-        let (child_index, child_pos) = Self::child_location(height, position);
+        let child_index = position.indices()[height];
 
         let child = self.children[child_index]
             .as_mut()
             .expect("There should be a child at this position");
         let (removed_item, child_has_children) =
-            Self::remove(child, height + 1, child_pos);
+            Self::remove(child, height + 1, position);
 
         if !child_has_children {
             self.children[child_index] = None;
@@ -151,14 +150,6 @@ where
     }
 }
 
-/// Returns the capacity of a node at a given depth in the tree.
-const fn capacity(arity: u64, depth: usize) -> u64 {
-    // (Down)casting to a `u32` should be ok, since height shouldn't ever become
-    // that large.
-    #[allow(clippy::cast_possible_truncation)]
-    u64::pow(arity, depth as u32)
-}
-
 /// A sparse Merkle tree.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -168,7 +159,7 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
     root: Node<T, H, A>,
-    positions: BTreeSet<u64>,
+    positions: BTreeSet<TreePosition<H, A>>,
 }
 
 impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
@@ -185,19 +176,29 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     ///
     /// # Panics
     /// If `position >= capacity`.
-    pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        self.root.insert(0, position, item);
+    pub fn insert(
+        &mut self,
+        position: impl Into<TreePosition<H, A>>,
+        item: impl Into<T>,
+    ) {
+        let position = position.into();
+        self.root.insert(0, &position, item);
         self.positions.insert(position);
     }
 
     /// Remove and return the item at the given `position` in the tree if it
     /// exists.
-    pub fn remove(&mut self, position: u64) -> Option<T> {
+    pub fn remove(
+        &mut self,
+        position: impl Into<TreePosition<H, A>>,
+    ) -> Option<T> {
+        let position = position.into();
+
         if !self.positions.contains(&position) {
             return None;
         }
 
-        let (item, _) = self.root.remove(0, position);
+        let (item, _) = self.root.remove(0, &position);
         self.positions.remove(&position);
 
         if self.positions.is_empty() {
@@ -208,14 +209,18 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     }
 
     /// Returns the [`Opening`] for the given `position` if it exists.
-    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>>
+    pub fn opening(
+        &self,
+        position: impl Into<TreePosition<H, A>>,
+    ) -> Option<Opening<T, H, A>>
     where
         T: Clone,
     {
+        let position = position.into();
         if !self.positions.contains(&position) {
             return None;
         }
-        Some(Opening::new(self, position))
+        Some(Opening::new(self, &position))
     }
 
     /// Get the root of the merkle tree.
@@ -226,7 +231,8 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
-    pub fn contains(&self, position: u64) -> bool {
+    pub fn contains(&self, position: impl Into<TreePosition<H, A>>) -> bool {
+        let position = position.into();
         self.positions.contains(&position)
     }
 
@@ -242,10 +248,11 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
         self.len() == 0
     }
 
-    /// The maximum number of leaves in the tree, i.e. its capacity.
+    /// The maximum position in a tree. It is the equivalent to
+    /// [`TreePosition::MAX`].
     #[must_use]
-    pub const fn capacity(&self) -> u64 {
-        capacity(A as u64, H)
+    pub const fn max_pos(&self) -> TreePosition<H, A> {
+        TreePosition::<H, A>::MAX
     }
 }
 
@@ -309,12 +316,5 @@ mod tests {
             &u8::NULL,
             "Since the tree is empty the root should be the null item"
         );
-    }
-
-    #[test]
-    #[should_panic]
-    fn tree_insertion_out_of_bounds() {
-        let mut tree = TestTree::new();
-        tree.insert(tree.capacity(), 42);
     }
 }
