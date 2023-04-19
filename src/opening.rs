@@ -36,16 +36,13 @@ where
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
-        let root = tree.root.as_ref().expect(
-            "The tree should have a root since it has a position filled",
-        );
 
         let mut opening = Self {
-            root: root.item.clone(),
+            root: tree.root.item,
             branch,
             positions,
         };
-        fill_opening(&mut opening, root, 0, position);
+        fill_opening(&mut opening, &tree.root, 0, position);
 
         opening
     }
@@ -102,7 +99,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     opening.branch[height]
         .iter_mut()
         .zip(&node.children)
-        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item.clone()));
+        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item));
     opening.positions[height] = child_index;
 }
 
@@ -134,10 +131,30 @@ where
 mod tests {
     use super::*;
 
-    extern crate alloc;
-    use alloc::string::String;
+    const H: usize = 4;
+    const A: usize = 2;
+    const TREE_CAP: usize = A.pow(H as u32);
 
-    const EMPTY_ITEM: String = String::new();
+    /// A string type that is on the stack, and holds a string of a size as
+    /// large as the tree.
+    #[derive(Clone, Copy, PartialEq)]
+    struct String {
+        chars: [char; TREE_CAP],
+        len: usize,
+    }
+
+    impl From<char> for String {
+        fn from(c: char) -> Self {
+            let mut chars = ['0'; TREE_CAP];
+            chars[0] = c;
+            Self { chars, len: 1 }
+        }
+    }
+
+    const EMPTY_ITEM: String = String {
+        chars: ['0'; TREE_CAP],
+        len: 0,
+    };
 
     /// A simple aggregator that concatenates strings.
     impl Aggregate<H, A> for String {
@@ -148,12 +165,14 @@ mod tests {
             Self: 'a,
             I: Iterator<Item = &'a Self>,
         {
-            items.into_iter().fold(EMPTY_ITEM, |acc, s| acc + s)
+            items.into_iter().fold(EMPTY_ITEM, |mut acc, s| {
+                acc.chars[acc.len..acc.len + s.len]
+                    .copy_from_slice(&s.chars[..s.len]);
+                acc.len += s.len;
+                acc
+            })
         }
     }
-
-    const H: usize = 4;
-    const A: usize = 2;
 
     type TestTree = Tree<String, H, A>;
 

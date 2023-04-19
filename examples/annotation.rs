@@ -5,7 +5,6 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use std::cmp;
-use std::ops::Range;
 use std::time::Instant;
 
 use blake3::{Hash, Hasher};
@@ -17,10 +16,16 @@ use rand::{RngCore, SeedableRng};
 const H: usize = 17;
 const A: usize = 4;
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
+struct Range {
+    start: u64,
+    end: u64,
+}
+
+#[derive(Clone, Copy)]
 struct Annotation {
     hash: Hash,
-    bh_range: Option<Range<u64>>,
+    bh_range: Option<Range>,
 }
 
 const EMPTY_ITEM: Annotation = Annotation {
@@ -44,12 +49,12 @@ impl Aggregate<H, A> for Annotation {
 
             bh_range = match (bh_range, item.bh_range.as_ref()) {
                 (None, None) => None,
-                (None, Some(r)) => Some(r.clone()),
-                (Some(r), None) => Some(r.clone()),
+                (None, Some(r)) => Some(*r),
+                (Some(r), None) => Some(r),
                 (Some(bh_range), Some(item_bh_range)) => {
                     let start = cmp::min(item_bh_range.start, bh_range.start);
                     let end = cmp::max(item_bh_range.end, bh_range.end);
-                    Some(start..end)
+                    Some(Range { start, end })
                 }
             };
         }
@@ -77,7 +82,10 @@ impl From<(Note, u64)> for Annotation {
 
         Self {
             hash: hasher.finalize(),
-            bh_range: Some(block_height..block_height),
+            bh_range: Some(Range {
+                start: block_height,
+                end: block_height,
+            }),
         }
     }
 }

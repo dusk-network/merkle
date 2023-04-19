@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `Aggregate` trait to bind `Self` to be `Copy`
+- Change `Tree::root` to return `&T` as opposed to `Option<&T>`
 - Change `Tree` structure by removing `len` field
 
 ### Fixed

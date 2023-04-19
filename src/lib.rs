@@ -102,8 +102,7 @@ where
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child =
-                Some(Box::new(Node::new(T::EMPTY_SUBTREES[height].clone())));
+            *child = Some(Box::new(Node::new(T::EMPTY_SUBTREES[height])));
         }
 
         // We just inserted a child at the given index.
@@ -120,7 +119,7 @@ where
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
         if height == H {
-            let mut item = T::EMPTY_SUBTREES[0].clone();
+            let mut item = T::EMPTY_SUBTREES[0];
             mem::swap(&mut self.item, &mut item);
             return (item, false);
         }
@@ -169,7 +168,7 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     archive_attr(derive(CheckBytes))
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
-    root: Option<Node<T, H, A>>,
+    root: Node<T, H, A>,
     positions: BTreeSet<u64>,
 }
 
@@ -181,7 +180,7 @@ where
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            root: None,
+            root: Node::new(T::EMPTY_SUBTREES[0]),
             positions: BTreeSet::new(),
         }
     }
@@ -191,14 +190,7 @@ where
     /// # Panics
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        if self.root.is_none() {
-            self.root = Some(Node::new(T::EMPTY_SUBTREES[0].clone()));
-        }
-
-        // We just inserted a root node so we can unwrap.
-        let root = self.root.as_mut().unwrap();
-
-        root.insert(0, position, item);
+        self.root.insert(0, position, item);
         self.positions.insert(position);
     }
 
@@ -212,14 +204,11 @@ where
             return None;
         }
 
-        // If the tree has some position filled then it has a root node.
-        let root = self.root.as_mut().unwrap();
-
-        let (item, _) = root.remove(0, position);
+        let (item, _) = self.root.remove(0, position);
 
         self.positions.remove(&position);
         if self.positions.is_empty() {
-            self.root = None;
+            self.root.item = T::EMPTY_SUBTREES[0];
         }
 
         Some(item)
@@ -239,8 +228,8 @@ where
     /// Get the root of the merkle tree.
     ///
     /// It is none if the tree is empty.
-    pub fn root(&self) -> Option<&T> {
-        self.root.as_ref().map(|r| &r.item)
+    pub fn root(&self) -> &T {
+        &self.root.item
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -322,9 +311,10 @@ mod tests {
 
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
-        assert!(
-            matches!(tree.root(), None),
-            "Since the tree is empty the root should be `None`"
+        assert_eq!(
+            tree.root(),
+            &u8::EMPTY_SUBTREES[0],
+            "Since the tree is empty the root should be the first empty item"
         );
     }
 

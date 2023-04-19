@@ -6,7 +6,7 @@
 
 /// A type that can be produced by aggregating multiple instances of itself, at
 /// certain heights of the tree.
-pub trait Aggregate<const H: usize, const A: usize>: Clone {
+pub trait Aggregate<const H: usize, const A: usize>: Copy {
     /// The items to be used for a given empty subtree at the given height.
     const EMPTY_SUBTREES: [Self; H];
 

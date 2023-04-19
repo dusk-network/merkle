@@ -13,7 +13,7 @@ Height 2  o   x x   x
 ```rust
 use dusk_merkle::{Tree, Aggregate};
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct U8(u8);
 
 impl From<u8> for U8 {
@@ -42,14 +42,14 @@ const A: usize = 2;
 
 let mut tree = Tree::<U8, H, A>::new();
 
-// No elements have been inserted so the root is `None`.
-assert_eq!(tree.root(), None);
+// No elements have been inserted so the root is the first empty item.
+assert_eq!(tree.root(), &U8::EMPTY_SUBTREES[0]);
 
 tree.insert(4, 21);
 tree.insert(7, 21);
 
-// After elements have been inserted, the root will be `Some`.
-assert!(matches!(tree.root(), Some(n) if n == &U8(42)));
+// After elements have been inserted, the root will be modified.
+assert_eq!(tree.root(), &U8(42));
 ```
 
 ## Benchmarks
