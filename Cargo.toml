@@ -30,3 +30,6 @@ rkyv-impl = [
     "bytecheck"
 ]
 bench = []
+
+[patch.crates-io]
+blake3 = { git = "https://github.com/ureeves/BLAKE3", branch = "const-conversions" }
