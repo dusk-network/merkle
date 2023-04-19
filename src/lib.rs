@@ -171,7 +171,6 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
 pub struct Tree<T, const H: usize, const A: usize> {
     root: Option<Node<T, H, A>>,
     positions: BTreeSet<u64>,
-    len: u64,
 }
 
 impl<T, const H: usize, const A: usize> Tree<T, H, A>
@@ -184,7 +183,6 @@ where
         Self {
             root: None,
             positions: BTreeSet::new(),
-            len: 0,
         }
     }
 
@@ -201,9 +199,7 @@ where
         let root = self.root.as_mut().unwrap();
 
         root.insert(0, position, item);
-        if self.positions.insert(position) {
-            self.len += 1;
-        }
+        self.positions.insert(position);
     }
 
     /// Remove and return the item at the given `position` in the tree if it
@@ -221,10 +217,8 @@ where
 
         let (item, _) = root.remove(0, position);
 
-        self.len -= 1;
         self.positions.remove(&position);
-
-        if self.len == 0 {
+        if self.positions.is_empty() {
             self.root = None;
         }
 
@@ -257,7 +251,7 @@ where
     /// Returns the number of elements that have been inserted into the tree.
     #[must_use]
     pub fn len(&self) -> u64 {
-        self.len
+        self.positions.len() as u64
     }
 
     /// Returns `true` if the tree is empty.

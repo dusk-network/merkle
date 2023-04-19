@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
 - Add `blake3` feature, implementing `Aggregate` for `blake3::Hash` [#11]
 
+### Changed
+
+- Change `Tree` structure by removing `len` field
+
 ### Fixed
 
 - Fix `CheckBytes` derivation in `Node` [#15]
