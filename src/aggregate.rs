@@ -6,12 +6,17 @@
 
 /// A type that can be produced by aggregating multiple instances of itself, at
 /// certain heights of the tree.
-pub trait Aggregate {
-    /// Aggregate `items` to produce a single one at the given `height`.
-    fn aggregate<'a, I>(height: usize, items: I) -> Self
+pub trait Aggregate<const H: usize, const A: usize>: Clone {
+    /// The items to be used for a given empty subtree at the given height.
+    const EMPTY_SUBTREES: [Self; H];
+
+    /// Aggregate the given `items` to produce a single one. The given iterator
+    /// is guaranteed to produce `A` number of items, from the leftmost to the
+    /// rightmost child of a tree's node.
+    fn aggregate<'a, I>(items: I) -> Self
     where
         Self: 'a,
-        I: ExactSizeIterator<Item = Option<&'a Self>>;
+        I: Iterator<Item = &'a Self>;
 }
 
 #[cfg(feature = "blake3")]
@@ -19,18 +24,22 @@ mod blake {
     use super::Aggregate;
     use blake3::{Hash, Hasher};
 
-    impl Aggregate for Hash {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+    const H: usize = 32;
+    const A: usize = 4;
+
+    const EMPTY_HASH: Hash = Hash::from_bytes([0; 32]);
+
+    impl Aggregate<H, A> for Hash {
+        const EMPTY_SUBTREES: [Self; H] = [EMPTY_HASH; H];
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: Iterator<Item = &'a Self>,
         {
             let mut hasher = Hasher::new();
             for item in items {
-                match item {
-                    Some(item) => hasher.update(item.as_bytes()),
-                    None => hasher.update(&[0u8; 32]),
-                };
+                hasher.update(item.as_bytes());
             }
             hasher.finalize()
         }
@@ -44,10 +53,8 @@ mod blake {
         use blake3::Hash;
         use rand::{RngCore, SeedableRng};
 
+        use super::{A, H};
         use crate::Tree;
-
-        const H: usize = 32;
-        const A: usize = 4;
 
         type Blake3Tree = Tree<Hash, H, A>;
 

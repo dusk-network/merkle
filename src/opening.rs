@@ -27,13 +27,13 @@ pub struct Opening<T, const H: usize, const A: usize> {
     positions: [usize; H],
 }
 
-impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
+impl<T, const H: usize, const A: usize> Opening<T, H, A>
+where
+    T: Aggregate<H, A>,
+{
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self
-    where
-        T: Clone,
-    {
+    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
         let root = tree.root.as_ref().expect(
@@ -66,7 +66,13 @@ impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
                 return false;
             }
 
-            item = T::aggregate(h, self.branch[h].iter().map(Option::as_ref));
+            let empty = &T::EMPTY_SUBTREES[h];
+
+            item = T::aggregate(
+                self.branch[h]
+                    .iter()
+                    .map(|item| item.as_ref().unwrap_or(empty)),
+            );
         }
 
         self.root == item
@@ -79,7 +85,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     height: usize,
     position: u64,
 ) where
-    T: Aggregate + Clone,
+    T: Aggregate<H, A>,
 {
     if height == H {
         return;
@@ -131,17 +137,18 @@ mod tests {
     extern crate alloc;
     use alloc::string::String;
 
+    const EMPTY_ITEM: String = String::new();
+
     /// A simple aggregator that concatenates strings.
-    impl Aggregate for String {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+    impl Aggregate<H, A> for String {
+        const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: Iterator<Item = &'a Self>,
         {
-            items.into_iter().fold(String::new(), |acc, s| match s {
-                Some(s) => acc + s,
-                None => acc,
-            })
+            items.into_iter().fold(EMPTY_ITEM, |acc, s| acc + s)
         }
     }
 
