@@ -9,8 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `EMPTY_SUBTREES` to `Aggregate` trait
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
-- Add `blake3` feature, implementing `Aggregate` for `blake3::Hash` [#11]
+
+### Changed
+
+- Change `Aggregate` trait to bind `Self` to be `Copy`
+- Change `Tree::root` to return `&T` as opposed to `Option<&T>`
+- Change `Tree` structure by removing `len` field
 
 ### Fixed
 
@@ -19,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ISSUES -->
 [#15]: https://github.com/dusk-network/merkle/issues/15
 [#13]: https://github.com/dusk-network/merkle/issues/13
-[#11]: https://github.com/dusk-network/merkle/issues/11
 
 <!-- VERSIONS -->
 [Unreleased]: https://github.com/dusk-network/merkle/compare/v0.1.0...HEAD

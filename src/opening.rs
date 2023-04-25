@@ -27,25 +27,22 @@ pub struct Opening<T, const H: usize, const A: usize> {
     positions: [usize; H],
 }
 
-impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
+impl<T, const H: usize, const A: usize> Opening<T, H, A>
+where
+    T: Aggregate<H, A>,
+{
     /// # Panics
     /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self
-    where
-        T: Clone,
-    {
+    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
         let branch = zero_array(|_| zero_array(|_| None));
-        let root = tree.root.as_ref().expect(
-            "The tree should have a root since it has a position filled",
-        );
 
         let mut opening = Self {
-            root: root.item.clone(),
+            root: tree.root.item,
             branch,
             positions,
         };
-        fill_opening(&mut opening, root, 0, position);
+        fill_opening(&mut opening, &tree.root, 0, position);
 
         opening
     }
@@ -66,7 +63,13 @@ impl<T: Aggregate, const H: usize, const A: usize> Opening<T, H, A> {
                 return false;
             }
 
-            item = T::aggregate(h, self.branch[h].iter().map(Option::as_ref));
+            let empty = &T::EMPTY_SUBTREES[h];
+
+            item = T::aggregate(
+                self.branch[h]
+                    .iter()
+                    .map(|item| item.as_ref().unwrap_or(empty)),
+            );
         }
 
         self.root == item
@@ -79,7 +82,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     height: usize,
     position: u64,
 ) where
-    T: Aggregate + Clone,
+    T: Aggregate<H, A>,
 {
     if height == H {
         return;
@@ -96,7 +99,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     opening.branch[height]
         .iter_mut()
         .zip(&node.children)
-        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item.clone()));
+        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item));
     opening.positions[height] = child_index;
 }
 
@@ -128,25 +131,48 @@ where
 mod tests {
     use super::*;
 
-    extern crate alloc;
-    use alloc::string::String;
+    const H: usize = 4;
+    const A: usize = 2;
+    const TREE_CAP: usize = A.pow(H as u32);
 
-    /// A simple aggregator that concatenates strings.
-    impl Aggregate for String {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
-        where
-            Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
-        {
-            items.into_iter().fold(String::new(), |acc, s| match s {
-                Some(s) => acc + s,
-                None => acc,
-            })
+    /// A string type that is on the stack, and holds a string of a size as
+    /// large as the tree.
+    #[derive(Clone, Copy, PartialEq)]
+    struct String {
+        chars: [char; TREE_CAP],
+        len: usize,
+    }
+
+    impl From<char> for String {
+        fn from(c: char) -> Self {
+            let mut chars = ['0'; TREE_CAP];
+            chars[0] = c;
+            Self { chars, len: 1 }
         }
     }
 
-    const H: usize = 4;
-    const A: usize = 2;
+    const EMPTY_ITEM: String = String {
+        chars: ['0'; TREE_CAP],
+        len: 0,
+    };
+
+    /// A simple aggregator that concatenates strings.
+    impl Aggregate<H, A> for String {
+        const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
+
+        fn aggregate<'a, I>(items: I) -> Self
+        where
+            Self: 'a,
+            I: Iterator<Item = &'a Self>,
+        {
+            items.into_iter().fold(EMPTY_ITEM, |mut acc, s| {
+                acc.chars[acc.len..acc.len + s.len]
+                    .copy_from_slice(&s.chars[..s.len]);
+                acc.len += s.len;
+                acc
+            })
+        }
+    }
 
     type TestTree = Tree<String, H, A>;
 

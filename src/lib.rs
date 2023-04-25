@@ -55,10 +55,9 @@ pub struct Node<T, const H: usize, const A: usize> {
 
 impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
-    T: Aggregate,
+    T: Aggregate<H, A>,
 {
     const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
-    const INIT_ITEM: Option<T> = None;
 
     const fn new(item: T) -> Self {
         debug_assert!(H > 0, "Height must be larger than zero");
@@ -71,11 +70,13 @@ where
     }
 
     fn compute_item(&mut self, height: usize) {
+        let empty = &T::EMPTY_SUBTREES[height];
+
         self.item = T::aggregate(
-            height,
             self.children
                 .iter()
-                .map(|node| node.as_ref().map(|node| &node.item)),
+                .map(|node| node.as_ref().map(|node| &node.as_ref().item))
+                .map(|item| item.unwrap_or(empty)),
         );
     }
 
@@ -101,10 +102,7 @@ where
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child = Some(Box::new(Node::new(T::aggregate(
-                height,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            ))));
+            *child = Some(Box::new(Node::new(T::EMPTY_SUBTREES[height])));
         }
 
         // We just inserted a child at the given index.
@@ -121,10 +119,7 @@ where
     /// If an element does not exist at the given position.
     fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
         if height == H {
-            let mut item = T::aggregate(
-                height,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            );
+            let mut item = T::EMPTY_SUBTREES[0];
             mem::swap(&mut self.item, &mut item);
             return (item, false);
         }
@@ -173,21 +168,20 @@ const fn capacity(arity: u64, depth: usize) -> u64 {
     archive_attr(derive(CheckBytes))
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
-    root: Option<Node<T, H, A>>,
+    root: Node<T, H, A>,
     positions: BTreeSet<u64>,
-    len: u64,
 }
 
-impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
-    const INIT_ITEM: Option<T> = None;
-
+impl<T, const H: usize, const A: usize> Tree<T, H, A>
+where
+    T: Aggregate<H, A>,
+{
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            root: None,
+            root: Node::new(T::EMPTY_SUBTREES[0]),
             positions: BTreeSet::new(),
-            len: 0,
         }
     }
 
@@ -196,20 +190,8 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// # Panics
     /// If `position >= capacity`.
     pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        if self.root.is_none() {
-            self.root = Some(Node::new(T::aggregate(
-                0,
-                [Self::INIT_ITEM; A].iter().map(Option::as_ref),
-            )));
-        }
-
-        // We just inserted a root node so we can unwrap.
-        let root = self.root.as_mut().unwrap();
-
-        root.insert(0, position, item);
-        if self.positions.insert(position) {
-            self.len += 1;
-        }
+        self.root.insert(0, position, item);
+        self.positions.insert(position);
     }
 
     /// Remove and return the item at the given `position` in the tree if it
@@ -222,16 +204,11 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
             return None;
         }
 
-        // If the tree has some position filled then it has a root node.
-        let root = self.root.as_mut().unwrap();
+        let (item, _) = self.root.remove(0, position);
 
-        let (item, _) = root.remove(0, position);
-
-        self.len -= 1;
         self.positions.remove(&position);
-
-        if self.len == 0 {
-            self.root = None;
+        if self.positions.is_empty() {
+            self.root.item = T::EMPTY_SUBTREES[0];
         }
 
         Some(item)
@@ -251,8 +228,8 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// Get the root of the merkle tree.
     ///
     /// It is none if the tree is empty.
-    pub fn root(&self) -> Option<&T> {
-        self.root.as_ref().map(|r| &r.item)
+    pub fn root(&self) -> &T {
+        &self.root.item
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -263,7 +240,7 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
     /// Returns the number of elements that have been inserted into the tree.
     #[must_use]
     pub fn len(&self) -> u64 {
-        self.len
+        self.positions.len() as u64
     }
 
     /// Returns `true` if the tree is empty.
@@ -283,16 +260,15 @@ impl<T: Aggregate, const H: usize, const A: usize> Tree<T, H, A> {
 mod tests {
     use super::*;
 
-    impl Aggregate for u8 {
-        fn aggregate<'a, I>(_: usize, items: I) -> Self
+    impl Aggregate<H, A> for u8 {
+        const EMPTY_SUBTREES: [Self; H] = [0; H];
+
+        fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: Iterator<Item = &'a Self>,
         {
-            items.into_iter().fold(0, |acc, n| match n {
-                Some(n) => acc + n,
-                None => acc,
-            })
+            items.into_iter().sum()
         }
     }
 
@@ -335,9 +311,10 @@ mod tests {
 
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
-        assert!(
-            matches!(tree.root(), None),
-            "Since the tree is empty the root should be `None`"
+        assert_eq!(
+            tree.root(),
+            &u8::EMPTY_SUBTREES[0],
+            "Since the tree is empty the root should be the first empty item"
         );
     }
 

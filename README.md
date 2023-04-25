@@ -13,7 +13,7 @@ Height 2  o   x x   x
 ```rust
 use dusk_merkle::{Tree, Aggregate};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 struct U8(u8);
 
 impl From<u8> for U8 {
@@ -22,16 +22,17 @@ impl From<u8> for U8 {
     }
 }
 
-impl Aggregate for U8 {
-    fn aggregate<'a, I>(_: usize, items: I) -> Self
+const EMPTY_ITEM: U8 = U8(0);
+
+impl Aggregate<H, A> for U8 {
+    const EMPTY_SUBTREES: [U8; H] = [EMPTY_ITEM; H];
+    
+    fn aggregate<'a, I>(items: I) -> Self
         where
             Self: 'a,
-            I: ExactSizeIterator<Item = Option<&'a Self>>,
+            I: Iterator<Item = &'a Self>,
     {
-        items.into_iter().fold(U8(0), |acc, n| match n {
-            Some(n) => U8(acc.0 + n.0),
-            None => acc,
-        })
+        items.into_iter().fold(U8(0), |acc, n| U8(acc.0 + n.0))
     }
 }
 
@@ -41,14 +42,14 @@ const A: usize = 2;
 
 let mut tree = Tree::<U8, H, A>::new();
 
-// No elements have been inserted so the root is `None`.
-assert_eq!(tree.root(), None);
+// No elements have been inserted so the root is the first empty item.
+assert_eq!(tree.root(), &U8::EMPTY_SUBTREES[0]);
 
 tree.insert(4, 21);
 tree.insert(7, 21);
 
-// After elements have been inserted, the root will be `Some`.
-assert!(matches!(tree.root(), Some(n) if n == &U8(42)));
+// After elements have been inserted, the root will be modified.
+assert_eq!(tree.root(), &U8(42));
 ```
 
 ## Benchmarks

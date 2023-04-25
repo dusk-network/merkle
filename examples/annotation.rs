@@ -5,10 +5,9 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use std::cmp;
-use std::ops::Range;
 use std::time::Instant;
 
-use blake3::{Hash, Hasher};
+use blake3::{Hash as Blake3Hash, Hasher};
 use dusk_merkle::{Aggregate, Tree as MerkleTree};
 
 use rand::rngs::StdRng;
@@ -17,38 +16,66 @@ use rand::{RngCore, SeedableRng};
 const H: usize = 17;
 const A: usize = 4;
 
-struct Annotation {
-    hash: Hash,
-    bh_range: Option<Range<u64>>,
+#[derive(Debug, Clone, Copy)]
+struct Hash([u8; 32]);
+
+impl From<Blake3Hash> for Hash {
+    fn from(h: Blake3Hash) -> Self {
+        Self(h.into())
+    }
 }
 
-impl Aggregate for Annotation {
-    fn aggregate<'a, I>(_: usize, items: I) -> Self
+impl From<[u8; 32]> for Hash {
+    fn from(h: [u8; 32]) -> Self {
+        Self(h)
+    }
+}
+
+#[derive(Clone, Copy)]
+struct Range {
+    start: u64,
+    end: u64,
+}
+
+#[derive(Clone, Copy)]
+struct Annotation {
+    hash: Hash,
+    bh_range: Option<Range>,
+}
+
+const EMPTY_ITEM: Annotation = Annotation {
+    hash: Hash([0; 32]),
+    bh_range: None,
+};
+
+impl Aggregate<H, A> for Annotation {
+    const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
+
+    fn aggregate<'a, I>(items: I) -> Self
     where
         Self: 'a,
-        I: ExactSizeIterator<Item = Option<&'a Self>>,
+        I: Iterator<Item = &'a Self>,
     {
         let mut hasher = Hasher::new();
         let mut bh_range = None;
 
-        // TODO don't use `flatten` and use a "zero item" instead?
-        for item in items.flatten() {
-            hasher.update(item.hash.as_bytes());
+        for item in items {
+            hasher.update(&item.hash.0);
 
             bh_range = match (bh_range, item.bh_range.as_ref()) {
                 (None, None) => None,
-                (None, Some(r)) => Some(r.clone()),
-                (Some(r), None) => Some(r.clone()),
+                (None, Some(r)) => Some(*r),
+                (Some(r), None) => Some(r),
                 (Some(bh_range), Some(item_bh_range)) => {
                     let start = cmp::min(item_bh_range.start, bh_range.start);
                     let end = cmp::max(item_bh_range.end, bh_range.end);
-                    Some(start..end)
+                    Some(Range { start, end })
                 }
             };
         }
 
         Self {
-            hash: hasher.finalize(),
+            hash: hasher.finalize().into(),
             bh_range,
         }
     }
@@ -69,8 +96,11 @@ impl From<(Note, u64)> for Annotation {
         hasher.update(&note.pk);
 
         Self {
-            hash: hasher.finalize(),
-            bh_range: Some(block_height..block_height),
+            hash: hasher.finalize().into(),
+            bh_range: Some(Range {
+                start: block_height,
+                end: block_height,
+            }),
         }
     }
 }
