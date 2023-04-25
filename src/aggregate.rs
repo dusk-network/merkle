@@ -22,12 +22,21 @@ pub trait Aggregate<const H: usize, const A: usize>: Copy {
 #[cfg(feature = "blake3")]
 mod blake {
     use super::Aggregate;
-    use blake3::{Hash, Hasher};
+    use blake3::{Hash as Blake3Hash, Hasher};
 
     const H: usize = 32;
     const A: usize = 4;
 
-    const EMPTY_HASH: Hash = Hash::from_bytes([0; 32]);
+    const EMPTY_HASH: Hash = Hash([0; 32]);
+
+    #[derive(Debug, Clone, Copy)]
+    struct Hash([u8; 32]);
+
+    impl From<Blake3Hash> for Hash {
+        fn from(h: Blake3Hash) -> Self {
+            Self(h.into())
+        }
+    }
 
     impl Aggregate<H, A> for Hash {
         const EMPTY_SUBTREES: [Self; H] = [EMPTY_HASH; H];
@@ -39,9 +48,9 @@ mod blake {
         {
             let mut hasher = Hasher::new();
             for item in items {
-                hasher.update(item.as_bytes());
+                hasher.update(&item.0);
             }
-            hasher.finalize()
+            hasher.finalize().into()
         }
     }
 
@@ -50,10 +59,9 @@ mod blake {
     mod bench {
         use test::Bencher;
 
-        use blake3::Hash;
         use rand::{RngCore, SeedableRng};
 
-        use super::{A, H};
+        use super::{Hash, A, H};
         use crate::Tree;
 
         type Blake3Tree = Tree<Hash, H, A>;
@@ -68,7 +76,7 @@ mod blake {
 
                 let mut hash_bytes = [0u8; 32];
                 rng.fill_bytes(&mut hash_bytes);
-                let hash = Hash::from(hash_bytes);
+                let hash = Hash(hash_bytes);
 
                 tree.insert(pos, hash);
             });

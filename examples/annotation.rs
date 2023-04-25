@@ -7,7 +7,7 @@
 use std::cmp;
 use std::time::Instant;
 
-use blake3::{Hash, Hasher};
+use blake3::{Hash as Blake3Hash, Hasher};
 use dusk_merkle::{Aggregate, Tree as MerkleTree};
 
 use rand::rngs::StdRng;
@@ -15,6 +15,21 @@ use rand::{RngCore, SeedableRng};
 
 const H: usize = 17;
 const A: usize = 4;
+
+#[derive(Debug, Clone, Copy)]
+struct Hash([u8; 32]);
+
+impl From<Blake3Hash> for Hash {
+    fn from(h: Blake3Hash) -> Self {
+        Self(h.into())
+    }
+}
+
+impl From<[u8; 32]> for Hash {
+    fn from(h: [u8; 32]) -> Self {
+        Self(h)
+    }
+}
 
 #[derive(Clone, Copy)]
 struct Range {
@@ -29,7 +44,7 @@ struct Annotation {
 }
 
 const EMPTY_ITEM: Annotation = Annotation {
-    hash: Hash::from_bytes([0; 32]),
+    hash: Hash([0; 32]),
     bh_range: None,
 };
 
@@ -45,7 +60,7 @@ impl Aggregate<H, A> for Annotation {
         let mut bh_range = None;
 
         for item in items {
-            hasher.update(item.hash.as_bytes());
+            hasher.update(&item.hash.0);
 
             bh_range = match (bh_range, item.bh_range.as_ref()) {
                 (None, None) => None,
@@ -60,7 +75,7 @@ impl Aggregate<H, A> for Annotation {
         }
 
         Self {
-            hash: hasher.finalize(),
+            hash: hasher.finalize().into(),
             bh_range,
         }
     }
@@ -81,7 +96,7 @@ impl From<(Note, u64)> for Annotation {
         hasher.update(&note.pk);
 
         Self {
-            hash: hasher.finalize(),
+            hash: hasher.finalize().into(),
             bh_range: Some(Range {
                 start: block_height,
                 end: block_height,
