@@ -2,11 +2,18 @@
 
 A sparsely populated Merkle [`Tree`], parametrized over its height and arity.
 ```text
-Height 0       o
-             /   \
-Height 1    o     o 
-           / \   / \
-Height 2  o   x x   x 
+Height 0             h
+                    / \
+                   /   \
+                  /     \
+                 /       \
+                /         \
+Height 1       h           h
+              / \         / \
+             /   \       /   \
+Height 2    h     x     h     x
+           / \   / \   / \   / \
+Height 3  h   x x   x x   h x   x
 ```
 
 ## Usage
