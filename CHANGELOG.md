@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add example of generating zero hashes for `blake3`
 - Add `EMPTY_SUBTREES` to `Aggregate` trait
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
 
