@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `Tree::walk` allowing a user to walk the tree [#21]
 - Add example of generating zero hashes for `blake3`
 - Add `EMPTY_SUBTREES` to `Aggregate` trait
 - Derive `Debug`, `Clone`, `PartialEq`, `Eq`, and `Hash` for `Tree` and `Opening` [#13]
@@ -24,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#21]: https://github.com/dusk-network/merkle/issues/21
 [#15]: https://github.com/dusk-network/merkle/issues/15
 [#13]: https://github.com/dusk-network/merkle/issues/13
 

@@ -14,6 +14,7 @@ extern crate test;
 
 mod aggregate;
 mod opening;
+mod walk;
 
 extern crate alloc;
 
@@ -32,6 +33,7 @@ use rkyv::{
 
 pub use aggregate::*;
 pub use opening::*;
+pub use walk::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
@@ -215,14 +217,25 @@ where
     }
 
     /// Returns the [`Opening`] for the given `position` if it exists.
-    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>>
-    where
-        T: Clone,
-    {
+    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>> {
         if !self.positions.contains(&position) {
             return None;
         }
         Some(Opening::new(self, position))
+    }
+
+    /// Returns a [`Walk`] through the tree, proceeding according to the
+    /// `walker` function.
+    ///
+    /// A walk starts from the root of the tree, and "drills down" according to
+    /// the output of the walker function. The function should return `true` or
+    /// `false`, indicating whether the iterator should continue along the
+    /// tree's path.
+    pub fn walk<W>(&self, walker: W) -> Walk<T, W, H, A>
+    where
+        W: Fn(&T) -> bool,
+    {
+        Walk::new(self, walker)
     }
 
     /// Get the root of the merkle tree.
