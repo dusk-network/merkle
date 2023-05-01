@@ -23,7 +23,7 @@ use rkyv::{Archive, Deserialize, Serialize};
 )]
 pub struct Opening<T, const H: usize, const A: usize> {
     root: T,
-    branch: [[Option<T>; A]; H],
+    branch: [[T; A]; H],
     positions: [usize; H],
 }
 
@@ -35,7 +35,7 @@ where
     /// If the given `position` is not in the `tree`.
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
-        let branch = zero_array(|_| zero_array(|_| None));
+        let branch = zero_array(|h| zero_array(|_| T::EMPTY_SUBTREES[h]));
 
         let mut opening = Self {
             root: tree.root.item,
@@ -59,17 +59,13 @@ where
             let level = &self.branch[h];
             let position = self.positions[h];
 
-            if Some(item) != level[position] {
+            // if the computed item doesn't match the stored item at the given
+            // position, the opening is incorrect
+            if item != level[position] {
                 return false;
             }
 
-            let empty = &T::EMPTY_SUBTREES[h];
-
-            item = T::aggregate(
-                self.branch[h]
-                    .iter()
-                    .map(|item| item.as_ref().unwrap_or(empty)),
-            );
+            item = T::aggregate(self.branch[h].iter());
         }
 
         self.root == item
@@ -96,10 +92,11 @@ fn fill_opening<T, const H: usize, const A: usize>(
 
     fill_opening(opening, child, height + 1, child_pos);
 
-    opening.branch[height]
-        .iter_mut()
-        .zip(&node.children)
-        .for_each(|(h, c)| *h = c.as_ref().map(|node| node.item));
+    for i in 0..A {
+        if let Some(child) = &node.children[i] {
+            opening.branch[height][i] = child.item;
+        }
+    }
     opening.positions[height] = child_index;
 }
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change opening branch to hold `T` instead of `Option<T>`
+
 ## [0.1.0] - 2023-04-26
 
 ### Added
