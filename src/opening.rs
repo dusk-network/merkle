@@ -47,6 +47,21 @@ where
         opening
     }
 
+    /// Returns the root of the opening.
+    pub fn root(&self) -> &T {
+        &self.root
+    }
+
+    /// Returns the branch of the opening.
+    pub fn branch(&self) -> &[[T; A]; H] {
+        &self.branch
+    }
+
+    /// Returns the indices for the path in the opening.
+    pub fn positions(&self) -> &[usize; H] {
+        &self.positions
+    }
+
     /// Verify the given item is the leaf of the opening, and that the opening
     /// is cryptographically correct.
     pub fn verify(&self, item: impl Into<T>) -> bool

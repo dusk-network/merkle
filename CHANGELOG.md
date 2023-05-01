@@ -7,9 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add getters for all fields in `Opening` [#25]
+
 ### Changed
 
-- Change opening branch to hold `T` instead of `Option<T>`
+- Change opening branch to hold `T` instead of `Option<T>` [#25]
 
 ## [0.1.0] - 2023-04-26
 
@@ -31,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#25]: https://github.com/dusk-network/merkle/issues/25
 [#21]: https://github.com/dusk-network/merkle/issues/21
 [#15]: https://github.com/dusk-network/merkle/issues/15
 [#13]: https://github.com/dusk-network/merkle/issues/13
