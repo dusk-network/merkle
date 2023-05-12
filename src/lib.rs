@@ -272,6 +272,8 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rand::rngs::StdRng;
+    use rand::{RngCore, SeedableRng};
 
     impl Aggregate<H, A> for u8 {
         const EMPTY_SUBTREES: [Self; H] = [0; H];
@@ -336,5 +338,32 @@ mod tests {
     fn tree_insertion_out_of_bounds() {
         let mut tree = TestTree::new();
         tree.insert(tree.capacity(), 42);
+    }
+
+    const HEIGHT: usize = 17;
+    const ARITY: usize = 4;
+
+    type BigTree = Tree<u64, HEIGHT, ARITY>;
+
+    impl Aggregate<HEIGHT, ARITY> for u64 {
+        const EMPTY_SUBTREES: [Self; HEIGHT] = [0; HEIGHT];
+
+        fn aggregate<'a, I>(items: I) -> Self
+        where
+            Self: 'a,
+            I: Iterator<Item = &'a Self>,
+        {
+            *items.into_iter().max().unwrap()
+        }
+    }
+
+    #[test]
+    fn tree_insertion_random() {
+        let mut tree = BigTree::new();
+        let rng = &mut StdRng::seed_from_u64(0xdea1);
+
+        for item in 0..1000 {
+            tree.insert(rng.next_u64(), item as u64);
+        }
     }
 }
