@@ -4,6 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::utils::init_array;
+
+use core::borrow::{Borrow, BorrowMut};
+use dusk_plonk::prelude::BlsScalar;
+
 /// A type that can be produced by aggregating multiple instances of itself, at
 /// certain heights of the tree.
 pub trait Aggregate<const H: usize, const A: usize>: Copy {
@@ -18,6 +23,46 @@ pub trait Aggregate<const H: usize, const A: usize>: Copy {
         Self: 'a,
         I: Iterator<Item = &'a Self>;
 }
+
+// pub trait PoseidonLeaf<const H: usize>: Copy + BorrowMut<BlsScalar> {
+//     const EMPTY_SUBTREES: [Self; H];
+//
+//     fn aggregate_nodes<'a, I>(items: I) -> Self
+//     where
+//         Self: 'a,
+//         I: Iterator<Item = &'a Self>;
+// }
+//
+// impl<L: PoseidonLeaf<H>, const H: usize, const A: usize> Aggregate<H, A> for
+// L {     const EMPTY_SUBTREES: [Self; H] = <L as
+// PoseidonLeaf<H>>::EMPTY_SUBTREES;
+//
+//     fn aggregate<'a, I>(items: I) -> Self
+//     where
+//         Self: 'a,
+//         I: Iterator<Item = &'a Self>,
+//     {
+//         use dusk_poseidon::sponge;
+//
+//         let mut all_items = [Self::EMPTY_SUBTREES[0]; A];
+//         let mut scalars = [BlsScalar::zero(); A];
+//
+//         all_items
+//             .iter_mut()
+//             .zip(scalars.iter_mut())
+//             .zip(items)
+//             .for_each(|((scalar, item), i)| {
+//                 *item = *i;
+//                 *scalar = *item.borrow();
+//             });
+//
+//         let mut item = L::aggregate_nodes(&all_items);
+//
+//         *item.borrow_mut() = sponge::hash(&scalars);
+//
+//         item
+//     }
+// }
 
 #[cfg(feature = "blake3")]
 mod blake {

@@ -4,6 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use crate::utils::init_array;
 use crate::{Aggregate, Node, Tree};
 
 use core::mem::MaybeUninit;
@@ -35,7 +36,7 @@ where
     /// If the given `position` is not in the `tree`.
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
-        let branch = zero_array(|h| zero_array(|_| T::EMPTY_SUBTREES[h]));
+        let branch = init_array(|h| init_array(|_| T::EMPTY_SUBTREES[h]));
 
         let mut opening = Self {
             root: tree.root.item,
@@ -87,6 +88,18 @@ where
     }
 }
 
+use crate::poseidon::PoseidonItem;
+use dusk_plonk::prelude::*;
+
+impl<T, const H: usize, const A: usize> Opening<PoseidonItem<T>, H, A>
+where
+    T: Aggregate<H, A>,
+{
+    fn gadget<C: Composer>(&self, composer: &mut C) -> ! {
+        todo!()
+    }
+}
+
 fn fill_opening<T, const H: usize, const A: usize>(
     opening: &mut Opening<T, H, A>,
     node: &Node<T, H, A>,
@@ -113,23 +126,6 @@ fn fill_opening<T, const H: usize, const A: usize>(
         }
     }
     opening.positions[height] = child_index;
-}
-
-fn zero_array<T, F, const N: usize>(closure: F) -> [T; N]
-where
-    F: Fn(usize) -> T,
-{
-    let mut array: [MaybeUninit<T>; N] =
-        unsafe { MaybeUninit::uninit().assume_init() };
-
-    for (i, elem) in array.iter_mut().enumerate() {
-        elem.write(closure(i));
-    }
-    let array_ptr = array.as_ptr();
-
-    // SAFETY: this is safe since we initialized all the array elements prior to
-    // the read operation.
-    unsafe { ptr::read(array_ptr.cast()) }
 }
 
 // R

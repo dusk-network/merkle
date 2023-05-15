@@ -14,6 +14,8 @@ extern crate test;
 
 mod aggregate;
 mod opening;
+mod poseidon;
+mod utils;
 mod walk;
 
 extern crate alloc;
@@ -33,6 +35,7 @@ use rkyv::{
 
 pub use aggregate::*;
 pub use opening::*;
+pub use poseidon::*;
 pub use walk::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -271,6 +274,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::println;
+
     use super::*;
 
     impl Aggregate<H, A> for u8 {
