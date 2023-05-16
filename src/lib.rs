@@ -14,6 +14,8 @@ extern crate test;
 
 mod aggregate;
 mod opening;
+#[cfg(feature = "poseidon")]
+pub mod poseidon;
 mod walk;
 
 extern crate alloc;
@@ -22,6 +24,8 @@ use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
 
 use core::mem;
+use core::mem::MaybeUninit;
+use core::ptr;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::{CheckBytes, Error as BytecheckError};
@@ -152,6 +156,25 @@ where
 
         (removed_item, has_children)
     }
+}
+
+pub(crate) fn empty_nodes<T, F, const N: usize>(closure: F) -> [T; N]
+where
+    F: Fn(usize) -> T,
+{
+    let mut array: [MaybeUninit<T>; N] =
+        unsafe { MaybeUninit::uninit().assume_init() };
+
+    let mut i = 0;
+    while i < N {
+        array[i].write(closure(i));
+        i += 1;
+    }
+    let array_ptr = array.as_ptr();
+
+    // SAFETY: this is safe since we initialized all the array elements prior to
+    // the read operation.
+    unsafe { ptr::read(array_ptr.cast()) }
 }
 
 /// Returns the capacity of a node at a given depth in the tree.
