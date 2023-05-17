@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add getters for all fields in `Opening` [#25]
+- Add merkle tree implementation with poseidon hash and opening gadget [#29]
 
 ### Changed
 
@@ -35,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#29]: https://github.com/dusk-network/merkle/issues/29
 [#25]: https://github.com/dusk-network/merkle/issues/25
 [#21]: https://github.com/dusk-network/merkle/issues/21
 [#15]: https://github.com/dusk-network/merkle/issues/15

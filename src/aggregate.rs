@@ -57,7 +57,7 @@ mod blake {
     #[cfg(test)]
     #[cfg(feature = "bench")]
     mod bench {
-        use test::Bencher;
+        use test_bench::Bencher;
 
         use rand::{RngCore, SeedableRng};
 

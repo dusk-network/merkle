@@ -4,10 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Aggregate, Node, Tree};
-
-use core::mem::MaybeUninit;
-use core::ptr;
+use crate::{empty_nodes, Aggregate, Node, Tree};
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -15,7 +12,7 @@ use bytecheck::CheckBytes;
 use rkyv::{Archive, Deserialize, Serialize};
 
 /// An opening for a given position in a merkle tree.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -35,7 +32,7 @@ where
     /// If the given `position` is not in the `tree`.
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
-        let branch = zero_array(|h| zero_array(|_| T::EMPTY_SUBTREES[h]));
+        let branch = empty_nodes(|h| empty_nodes(|_| T::EMPTY_SUBTREES[h]));
 
         let mut opening = Self {
             root: tree.root.item,
@@ -114,30 +111,6 @@ fn fill_opening<T, const H: usize, const A: usize>(
     }
     opening.positions[height] = child_index;
 }
-
-fn zero_array<T, F, const N: usize>(closure: F) -> [T; N]
-where
-    F: Fn(usize) -> T,
-{
-    let mut array: [MaybeUninit<T>; N] =
-        unsafe { MaybeUninit::uninit().assume_init() };
-
-    for (i, elem) in array.iter_mut().enumerate() {
-        elem.write(closure(i));
-    }
-    let array_ptr = array.as_ptr();
-
-    // SAFETY: this is safe since we initialized all the array elements prior to
-    // the read operation.
-    unsafe { ptr::read(array_ptr.cast()) }
-}
-
-// R
-//
-// [H_ABCDEFGH, H_IJKLMNOP]   1
-// [H_IJKL, H_MNOP]           0
-// [H_IJ, H_KL]               1
-// [H_K, H_L]                 0
 
 #[cfg(test)]
 mod tests {
