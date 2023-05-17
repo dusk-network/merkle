@@ -80,3 +80,75 @@ where
         }
     }
 }
+
+#[cfg(test)]
+#[cfg(feature = "bench")]
+mod bench {
+    use test::Bencher;
+
+    use super::*;
+
+    use core::cmp;
+
+    use rand::{RngCore, SeedableRng};
+
+    type PoseidonTree = Tree<Option<BHRange>, HEIGHT, ARITY>;
+
+    // set height and arity of the poseidon merkle tree
+    const HEIGHT: usize = 17;
+    const ARITY: usize = 4;
+
+    type PoseidonItem = Item<Option<BHRange>>;
+
+    // block-height range type keeps track of the min and max block height
+    // of all children
+    #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+    struct BHRange {
+        min: u64,
+        max: u64,
+    }
+
+    // implement Aggregate for BHRange type
+    impl Aggregate<HEIGHT, ARITY> for Option<BHRange> {
+        const EMPTY_SUBTREES: [Self; HEIGHT] = [None; HEIGHT];
+
+        fn aggregate<'a, I>(items: I) -> Self
+        where
+            Self: 'a,
+            I: Iterator<Item = &'a Self>,
+        {
+            let mut bh_range = None;
+            for item in items {
+                bh_range = match (bh_range, item.as_ref()) {
+                    (None, None) => None,
+                    (None, Some(r)) => Some(*r),
+                    (Some(r), None) => Some(r),
+                    (Some(bh_range), Some(item_bh_range)) => {
+                        let min = cmp::min(item_bh_range.min, bh_range.min);
+                        let max = cmp::max(item_bh_range.max, bh_range.max);
+                        Some(BHRange { min, max })
+                    }
+                };
+            }
+            bh_range
+        }
+    }
+
+    #[bench]
+    fn poseidon(b: &mut Bencher) {
+        let tree = &mut PoseidonTree::new();
+        let rng = &mut rand::rngs::StdRng::seed_from_u64(0xbeef);
+
+        let mut bh = 0;
+        b.iter(|| {
+            let pos = rng.next_u64() % u32::MAX as u64;
+            bh += 1;
+            let hash = BlsScalar::random(rng);
+            let item = PoseidonItem {
+                hash,
+                data: Some(BHRange { min: bh, max: bh }),
+            };
+            tree.insert(pos, item);
+        });
+    }
+}
