@@ -36,6 +36,15 @@ impl<T> Item<T> {
     }
 }
 
+impl<T> Default for Item<T>
+where
+    T: Default+Copy
+{
+    fn default() -> Self {
+        Item::new(BlsScalar::default(), T::default())
+    }
+}
+
 impl<T, const H: usize, const A: usize> Aggregate<H, A> for Item<T>
 where
     T: Aggregate<H, A>,

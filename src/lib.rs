@@ -7,6 +7,7 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 #![deny(clippy::pedantic)]
+#![feature(const_btree_new)]
 /* ***************************************** */
 #![cfg_attr(feature = "bench", feature(test))]
 #[cfg(feature = "bench")]

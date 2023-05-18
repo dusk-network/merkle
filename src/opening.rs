@@ -24,6 +24,19 @@ pub struct Opening<T, const H: usize, const A: usize> {
     positions: [usize; H],
 }
 
+impl<T, const H: usize, const A: usize> Default for Opening<T, H, A>
+where
+    T: Default+Copy,
+{
+    fn default() -> Self {
+        Self {
+            root: T::default(),
+            branch: [[T::default(); A]; H],
+            positions: [0usize; H]
+        }
+    }
+}
+
 impl<T, const H: usize, const A: usize> Opening<T, H, A>
 where
     T: Aggregate<H, A>,
