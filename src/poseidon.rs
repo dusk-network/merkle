@@ -143,7 +143,7 @@ mod bench {
         b.iter(|| {
             let pos = rng.next_u64() % u32::MAX as u64;
             bh += 1;
-            let hash = BlsScalar::random(rng);
+            let hash = poseidon_hash(BlsScalar::from(bh));
             let item = PoseidonItem {
                 hash,
                 data: Some(BHRange { min: bh, max: bh }),
