@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add getters for all fields in `Opening` [#25]
 - Add merkle tree implementation with poseidon hash and opening gadget [#29]
+- Add implementation of `Aggregate` for `()` [#34]
 
 ### Changed
 

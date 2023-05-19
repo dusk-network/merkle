@@ -19,6 +19,18 @@ pub trait Aggregate<const H: usize, const A: usize>: Copy {
         I: Iterator<Item = &'a Self>;
 }
 
+// Implement aggregate for an item with empty data
+impl<const H: usize, const A: usize> Aggregate<H, A> for () {
+    const EMPTY_SUBTREES: [(); H] = [(); H];
+
+    fn aggregate<'a, I>(_: I) -> Self
+    where
+        Self: 'a,
+        I: Iterator<Item = &'a Self>,
+    {
+    }
+}
+
 #[cfg(feature = "blake3")]
 mod blake {
     use super::Aggregate;
