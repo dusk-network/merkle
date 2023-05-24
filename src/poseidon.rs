@@ -15,6 +15,11 @@ use dusk_poseidon::sponge::hash as poseidon_hash;
 
 use crate::Aggregate;
 
+#[cfg(feature = "rkyv-impl")]
+use bytecheck::CheckBytes;
+#[cfg(feature = "rkyv-impl")]
+use rkyv::{Archive, Deserialize, Serialize};
+
 /// The Poseidon Merkle Tree
 pub type Tree<T, const H: usize, const A: usize> = crate::Tree<Item<T>, H, A>;
 
@@ -24,6 +29,11 @@ pub type Opening<T, const H: usize, const A: usize> =
 
 /// The Poseidon Node type used for the poseidon merkle tree
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[cfg_attr(
+    feature = "rkyv-impl",
+    derive(Archive, Serialize, Deserialize),
+    archive_attr(derive(CheckBytes))
+)]
 pub struct Item<T> {
     pub hash: BlsScalar,
     pub data: T,
