@@ -37,7 +37,8 @@ rkyv-impl = [
     "rkyv/validation",
     "rkyv/alloc",
     "rkyv",
-    "bytecheck"
+    "bytecheck",
+    "dusk-bls12_381/rkyv-impl"
 ]
 poseidon = ["dusk-poseidon", "dusk-bls12_381"]
 zk = ["dusk-plonk", "dusk-poseidon/alloc"]
