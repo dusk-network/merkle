@@ -1,0 +1,25 @@
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+name: Continuous integration
+
+jobs:
+  code_analysis:
+    name: Code Analysis
+    uses: dusk-network/.github/.github/workflows/code-analysis.yml@main
+    with:
+      clippy_default: false
+      clippy_args: -- -D warnings
+
+  dusk_analyzer:
+    name: Dusk Analyzer
+    uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
+
+  tests_std:
+    name: tests std
+    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
+    with:
+      test_flags: --features=blake3,rkyv-impl,size_32,poseidon,zk
