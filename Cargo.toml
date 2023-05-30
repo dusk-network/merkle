@@ -47,9 +47,14 @@ zk = ["dusk-plonk", "dusk-poseidon/alloc"]
 [[bench]]
 name = "zk"
 harness = false
-features = ["zk", "poseidon"]
+required-features = ["zk", "poseidon"]
 
 [[bench]]
 name = "poseidon"
 harness = false
-features = "poseidon"
+required-features = ["poseidon"]
+
+[[bench]]
+name = "blake3"
+harness = false
+required-features = ["blake3"]
