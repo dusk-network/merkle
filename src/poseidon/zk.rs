@@ -6,7 +6,9 @@
 
 // to be able to use this module, the "poseidon" feature needs to be in scope
 
-use super::*;
+// use super::*;
+use crate::poseidon::Opening;
+use crate::Aggregate;
 
 use dusk_plonk::prelude::{BlsScalar, Composer, Constraint, Witness};
 use dusk_poseidon::sponge::gadget as poseidon_hash_gadget;
@@ -91,10 +93,12 @@ mod test {
     use dusk_plonk::prelude::{
         Circuit, Compiler, Composer, Error, PublicParameters,
     };
+    use dusk_poseidon::sponge::hash as poseidon_hash;
     use rand::rngs::StdRng;
     use rand::{RngCore, SeedableRng};
 
     use crate::poseidon::Item;
+    use crate::poseidon::Tree;
 
     // set max circuit size to 2^13 gates
     const CAPACITY: usize = 13;
@@ -221,173 +225,5 @@ mod test {
         verifier
             .verify(&proof, &public_inputs)
             .expect("Proof verification should succeed");
-    }
-}
-
-#[cfg(test)]
-#[cfg(feature = "bench")]
-mod bench {
-    use super::*;
-
-    use test_bench::Bencher;
-
-    use core::cmp;
-
-    use dusk_plonk::prelude::{
-        Circuit, Compiler, Composer, Error, Proof, PublicParameters,
-    };
-    use rand::rngs::StdRng;
-    use rand::{RngCore, SeedableRng};
-
-    use crate::poseidon::Item;
-
-    type PoseidonTree = Tree<Option<BHRange>, HEIGHT, ARITY>;
-
-    // set max circuit size to 2^13 gates
-    const CAPACITY: usize = 16;
-
-    // set height and arity of the poseidon merkle tree
-    const HEIGHT: usize = 17;
-    const ARITY: usize = 4;
-
-    type PoseidonItem = Item<Option<BHRange>>;
-
-    // block-height range type keeps track of the min and max block height
-    // of all children
-    #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-    struct BHRange {
-        min: u64,
-        max: u64,
-    }
-
-    // implement Aggregate for BHRange type
-    impl Aggregate<HEIGHT, ARITY> for Option<BHRange> {
-        const EMPTY_SUBTREES: [Self; HEIGHT] = [None; HEIGHT];
-
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
-            let mut bh_range = None;
-            for item in items {
-                bh_range = match (bh_range, item.as_ref()) {
-                    (None, None) => None,
-                    (None, Some(r)) => Some(*r),
-                    (Some(r), None) => Some(r),
-                    (Some(bh_range), Some(item_bh_range)) => {
-                        let min = cmp::min(item_bh_range.min, bh_range.min);
-                        let max = cmp::max(item_bh_range.max, bh_range.max);
-                        Some(BHRange { min, max })
-                    }
-                };
-            }
-            bh_range
-        }
-    }
-
-    // Create a circuit for the opening
-    #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
-    struct OpeningCircuit {
-        opening: Opening<Option<BHRange>, HEIGHT, ARITY>,
-        leaf: PoseidonItem,
-    }
-
-    impl Default for OpeningCircuit {
-        fn default() -> Self {
-            let mut tree = Tree::new();
-            tree.insert(0, PoseidonItem::EMPTY_SUBTREES[0]);
-            let opening =
-                tree.opening(0).expect("There is a leaf at position 0");
-            Self {
-                opening,
-                leaf: PoseidonItem::EMPTY_SUBTREES[0],
-            }
-        }
-    }
-
-    impl OpeningCircuit {
-        /// Create a new OpeningCircuit
-        pub fn new(
-            opening: Opening<Option<BHRange>, HEIGHT, ARITY>,
-            leaf: PoseidonItem,
-        ) -> Self {
-            Self { opening, leaf }
-        }
-    }
-
-    impl Circuit for OpeningCircuit {
-        fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-        where
-            C: Composer,
-        {
-            // append the leaf and opening gadget to the circuit
-            let leaf = composer.append_witness(self.leaf.hash);
-            let computed_root = self.opening.gadget(composer, leaf);
-
-            // append the public root as public input to the circuit
-            // and ensure it is equal to the computed root
-            let constraint = Constraint::new()
-                .left(-BlsScalar::one())
-                .a(computed_root)
-                .public(self.opening.root().hash);
-            composer.append_gate(constraint);
-
-            Ok(())
-        }
-    }
-
-    #[bench]
-    fn poseidon(b: &mut Bencher) {
-        // create the prover and verifier circuit descriptions
-        let label = b"merkle opening";
-        let rng = &mut StdRng::seed_from_u64(0xdea1);
-        let pp = PublicParameters::setup(1 << CAPACITY, rng).unwrap();
-        let (prover, verifier) =
-            Compiler::compile::<OpeningCircuit>(&pp, label)
-                .expect("Circuit should compile successfully");
-
-        // create a new tree and insert 100 random leaves
-        let tree = &mut PoseidonTree::new();
-        let rng = &mut rand::rngs::StdRng::seed_from_u64(0xbeef);
-        let bh_max = 100;
-        for bh in 0..bh_max {
-            let pos = rng.next_u64() % u32::MAX as u64;
-            let leaf = PoseidonItem {
-                hash: BlsScalar::random(rng),
-                data: Some(BHRange { min: bh, max: bh }),
-            };
-            tree.insert(pos, leaf);
-        }
-
-        // insert new leaf in the tree at bh 100 for the opening
-        let pos = rng.next_u64() % u32::MAX as u64;
-        let leaf = PoseidonItem {
-            hash: BlsScalar::random(rng),
-            data: Some(BHRange {
-                min: bh_max,
-                max: bh_max,
-            }),
-        };
-        tree.insert(pos, leaf);
-
-        // create a new opening circuit for the last leaf we inserted
-        let opening = tree.opening(pos as u64).unwrap();
-        // sanity check
-        assert!(opening.verify(leaf.clone()));
-        let circuit = OpeningCircuit::new(opening, leaf);
-        let public_inputs = [opening.root().hash];
-
-        let mut proof = Proof::default();
-        b.iter(|| {
-            (proof, _) = prover
-                .prove(rng, &circuit)
-                .expect("Proof generation should succeed");
-        });
-        b.iter(|| {
-            verifier
-                .verify(&proof, &public_inputs)
-                .expect("Proof verification should succeed");
-        });
     }
 }

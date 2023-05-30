@@ -28,6 +28,7 @@ rand = "0.8"
 hex = "0.4"
 dusk-poseidon = "0.28"
 dusk-bls12_381 = "0.11"
+criterion = "0.3"
 
 [features]
 size_16 = ["rkyv/size_16"]
@@ -42,4 +43,8 @@ rkyv-impl = [
 ]
 poseidon = ["dusk-poseidon", "dusk-bls12_381"]
 zk = ["dusk-plonk", "dusk-poseidon/alloc"]
-bench = []
+
+[[bench]]
+name = "zk"
+harness = false
+features = ["zk", "poseidon"]
