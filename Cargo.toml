@@ -48,3 +48,8 @@ zk = ["dusk-plonk", "dusk-poseidon/alloc"]
 name = "zk"
 harness = false
 features = ["zk", "poseidon"]
+
+[[bench]]
+name = "poseidon"
+harness = false
+features = "poseidon"
