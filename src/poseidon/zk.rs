@@ -4,9 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// to be able to use this module, the "poseidon" feature needs to be in scope
-
-// use super::*;
 use crate::poseidon::Opening;
 use crate::Aggregate;
 

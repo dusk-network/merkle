@@ -8,13 +8,6 @@
 #![no_std]
 #![deny(clippy::pedantic)]
 
-#[cfg(feature = "blake3")]
-pub mod blake3;
-mod opening;
-#[cfg(feature = "poseidon")]
-pub mod poseidon;
-mod walk;
-
 extern crate alloc;
 
 use alloc::boxed::Box;
@@ -31,6 +24,14 @@ use rkyv::{
     ser::Serializer, validation::ArchiveContext, Archive, Deserialize,
     Fallible, Serialize,
 };
+
+#[cfg(feature = "blake3")]
+pub mod blake3;
+#[cfg(feature = "poseidon")]
+pub mod poseidon;
+
+mod opening;
+mod walk;
 
 pub use opening::*;
 pub use walk::*;

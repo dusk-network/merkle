@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// #![cfg(features = "poseidon")]
-
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use rand::{RngCore, SeedableRng};

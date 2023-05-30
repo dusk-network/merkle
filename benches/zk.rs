@@ -6,11 +6,6 @@
 
 // to be able to use this module, the "poseidon" feature needs to be in scope
 
-// #![cfg(features = "poseidon")]
-// #![cfg(features = "zk")]
-
-// #[macro_use]
-// extern crate criterion;
 use criterion::{criterion_group, criterion_main, Criterion};
 
 use dusk_merkle::poseidon::{Item, Opening, Tree};
