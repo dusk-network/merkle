@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Change the benchmarks to use criterion [#34]
+
 ### Added
 
 - Added missing Rkyv derivations for poseidon `Item`
@@ -43,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#32]: https://github.com/dusk-network/merkle/issues/32
 [#29]: https://github.com/dusk-network/merkle/issues/29
 [#25]: https://github.com/dusk-network/merkle/issues/25
 [#21]: https://github.com/dusk-network/merkle/issues/21

@@ -7,16 +7,6 @@
 #![doc = include_str!("../README.md")]
 #![no_std]
 #![deny(clippy::pedantic)]
-/* ***************************************** */
-#![cfg_attr(feature = "bench", feature(test))]
-#[cfg(feature = "bench")]
-extern crate test as test_bench;
-
-mod aggregate;
-mod opening;
-#[cfg(feature = "poseidon")]
-pub mod poseidon;
-mod walk;
 
 extern crate alloc;
 
@@ -35,9 +25,43 @@ use rkyv::{
     Fallible, Serialize,
 };
 
-pub use aggregate::*;
+#[cfg(feature = "blake3")]
+pub mod blake3;
+#[cfg(feature = "poseidon")]
+pub mod poseidon;
+
+mod opening;
+mod walk;
+
 pub use opening::*;
 pub use walk::*;
+
+/// A type that can be produced by aggregating multiple instances of itself, at
+/// certain heights of the tree.
+pub trait Aggregate<const H: usize, const A: usize>: Copy {
+    /// The items to be used for a given empty subtree at the given height.
+    const EMPTY_SUBTREES: [Self; H];
+
+    /// Aggregate the given `items` to produce a single one. The given iterator
+    /// is guaranteed to produce `A` number of items, from the leftmost to the
+    /// rightmost child of a tree's node.
+    fn aggregate<'a, I>(items: I) -> Self
+    where
+        Self: 'a,
+        I: Iterator<Item = &'a Self>;
+}
+
+// Implement aggregate for an item with empty data
+impl<const H: usize, const A: usize> Aggregate<H, A> for () {
+    const EMPTY_SUBTREES: [(); H] = [(); H];
+
+    fn aggregate<'a, I>(_: I) -> Self
+    where
+        Self: 'a,
+        I: Iterator<Item = &'a Self>,
+    {
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
