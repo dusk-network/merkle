@@ -34,9 +34,7 @@ pub trait Aggregate<const H: usize, const A: usize>: Copy {
     /// The items to be used for a given empty subtree at the given height.
     const EMPTY_SUBTREES: [Self; H];
 
-    /// Aggregate the given `items` to produce a single one. The given iterator
-    /// is guaranteed to produce `A` number of items, from the leftmost to the
-    /// rightmost child of a tree's node.
+    /// Aggregate the given array of item references to return a single item.
     fn aggregate(items: [&Self; A]) -> Self;
 }
 
