@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::boxed::Box;
-use core::mem;
+use core::cell::{Ref, RefCell};
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::{CheckBytes, Error as BytecheckError};
@@ -15,9 +15,9 @@ use rkyv::{
     Fallible, Serialize,
 };
 
-use crate::{capacity, Aggregate};
+use crate::{capacity, init_array, Aggregate};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -32,7 +32,7 @@ use crate::{capacity, Aggregate};
 )]
 #[doc(hidden)]
 pub struct Node<T, const H: usize, const A: usize> {
-    pub(crate) item: T,
+    item: RefCell<Option<T>>,
     #[cfg_attr(feature = "rkyv-impl", omit_bounds, archive_attr(omit_bounds))]
     pub(crate) children: [Option<Box<Node<T, H, A>>>; A],
 }
@@ -43,27 +43,42 @@ where
 {
     const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
 
-    pub(crate) const fn new(item: T) -> Self {
+    pub(crate) const fn new() -> Self {
         debug_assert!(H > 0, "Height must be larger than zero");
         debug_assert!(A > 0, "Arity must be larger than zero");
 
         Self {
-            item,
+            item: RefCell::new(None),
             children: [Self::INIT_NODE; A],
         }
     }
 
-    fn compute_item(&mut self, height: usize) {
-        let empty = &T::EMPTY_SUBTREES[height];
+    pub(crate) fn item(&self, height: usize) -> Ref<T> {
+        if self.item.borrow().is_none() {
+            let empty = &T::EMPTY_SUBTREES[height + 1];
+            let mut item_refs = [empty; A];
 
-        let mut ref_array = [empty; A];
-        for (i, r) in ref_array.iter_mut().enumerate() {
-            if let Some(child) = &self.children[i] {
-                *r = &child.item;
+            let child_items: [Option<Ref<T>>; A] = init_array(|i| {
+                self.children[i].as_ref().map(|item| item.item(height))
+            });
+
+            let mut has_children = false;
+            item_refs.iter_mut().zip(&child_items).for_each(|(r, c)| {
+                if let Some(c) = c {
+                    *r = c;
+                    has_children = true;
+                }
+            });
+
+            if has_children {
+                self.item.replace(Some(T::aggregate(item_refs)));
+            } else {
+                self.item.replace(Some(T::EMPTY_SUBTREES[height]));
             }
         }
 
-        self.item = T::aggregate(ref_array);
+        // unwrapping is ok since we ensure it exists
+        Ref::map(self.item.borrow(), |item| item.as_ref().unwrap())
     }
 
     pub(crate) fn child_location(height: usize, position: u64) -> (usize, u64) {
@@ -85,22 +100,21 @@ where
         item: impl Into<T>,
     ) {
         if height == H {
-            self.item = item.into();
+            self.item.replace(Some(item.into()));
             return;
         }
+        self.item.replace(None);
 
         let (child_index, child_pos) = Self::child_location(height, position);
 
         let child = &mut self.children[child_index];
         if child.is_none() {
-            *child = Some(Box::new(Node::new(T::EMPTY_SUBTREES[height])));
+            *child = Some(Box::new(Node::new()));
         }
 
         // We just inserted a child at the given index.
         let child = self.children[child_index].as_mut().unwrap();
         Self::insert(child, height + 1, child_pos, item);
-
-        self.compute_item(height);
     }
 
     /// Returns the removed element, together with if there are any siblings
@@ -110,10 +124,11 @@ where
     /// If an element does not exist at the given position.
     pub(crate) fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
         if height == H {
-            let mut item = T::EMPTY_SUBTREES[0];
-            mem::swap(&mut self.item, &mut item);
+            // unwrapping is ok since leaves are always filled
+            let item = self.item.take().unwrap();
             return (item, false);
         }
+        self.item.replace(None);
 
         let (child_index, child_pos) = Self::child_location(height, position);
 
@@ -133,10 +148,6 @@ where
                 has_children = true;
                 break;
             }
-        }
-
-        if has_children {
-            self.compute_item(height);
         }
 
         (removed_item, has_children)

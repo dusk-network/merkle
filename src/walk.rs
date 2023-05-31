@@ -4,7 +4,9 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Node, Tree};
+use core::cell::Ref;
+
+use crate::{Aggregate, Node, Tree};
 
 /// Iterator that walks through a tree's leaves, according to a walker function.
 #[derive(Debug, Clone)]
@@ -19,6 +21,7 @@ pub struct Walk<'a, T, W, const H: usize, const A: usize> {
 
 impl<'a, T, W, const H: usize, const A: usize> Walk<'a, T, W, H, A>
 where
+    T: Aggregate<H, A>,
     W: Fn(&T) -> bool,
 {
     pub(crate) fn new(tree: &'a Tree<T, H, A>, walker: W) -> Self {
@@ -36,7 +39,7 @@ where
         &mut self,
         node: &'a Node<T, H, A>,
         h: usize,
-    ) -> Option<&'a T> {
+    ) -> Option<Ref<'a, T>> {
         // We are at a node before a leaf, therefore we should try to return our
         // first eligible child.
         if h == H - 1 {
@@ -47,8 +50,9 @@ where
             for i in *index..A {
                 *index = i + 1;
                 if let Some(leaf) = &node.children[i] {
-                    if (self.walker)(&leaf.item) {
-                        return Some(&leaf.item);
+                    let leaf = leaf.item(h);
+                    if (self.walker)(&*leaf) {
+                        return Some(leaf);
                     }
                 }
             }
@@ -67,7 +71,7 @@ where
                 self.indices[h] = i;
                 if let Some(child) = &node.children[i] {
                     let child = child.as_ref();
-                    if (self.walker)(&child.item) {
+                    if (self.walker)(&*child.item(h)) {
                         self.path[h] = Some(child);
                         break;
                     }
@@ -90,7 +94,7 @@ where
 
                 if let Some(child) = &node.children[i] {
                     let child = child.as_ref();
-                    if (self.walker)(&child.item) {
+                    if (self.walker)(&*child.item(h)) {
                         self.path[h] = Some(child);
                         match self.advance(child, h + 1) {
                             Some(item) => return Some(item),
@@ -110,9 +114,10 @@ where
 
 impl<'a, T, W, const H: usize, const A: usize> Iterator for Walk<'a, T, W, H, A>
 where
+    T: Aggregate<H, A>,
     W: Fn(&T) -> bool,
 {
-    type Item = &'a T;
+    type Item = Ref<'a, T>;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.advance(self.root, 0)

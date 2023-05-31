@@ -5,6 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::collections::BTreeSet;
+use core::cell::Ref;
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::{CheckBytes, Error as BytecheckError};
@@ -17,7 +18,7 @@ use rkyv::{
 use crate::{capacity, Aggregate, Node, Opening, Walk};
 
 /// A sparse Merkle tree.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
     derive(Archive, Serialize, Deserialize),
@@ -36,7 +37,7 @@ where
     #[must_use]
     pub const fn new() -> Self {
         Self {
-            root: Node::new(T::EMPTY_SUBTREES[0]),
+            root: Node::new(),
             positions: BTreeSet::new(),
         }
     }
@@ -61,11 +62,7 @@ where
         }
 
         let (item, _) = self.root.remove(0, position);
-
         self.positions.remove(&position);
-        if self.positions.is_empty() {
-            self.root.item = T::EMPTY_SUBTREES[0];
-        }
 
         Some(item)
     }
@@ -95,8 +92,8 @@ where
     /// Get the root of the merkle tree.
     ///
     /// It is none if the tree is empty.
-    pub fn root(&self) -> &T {
-        &self.root.item
+    pub fn root(&self) -> Ref<T> {
+        self.root.item(0)
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -175,8 +172,8 @@ mod tests {
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
         assert_eq!(
-            tree.root(),
-            &u8::EMPTY_SUBTREES[0],
+            *tree.root(),
+            u8::EMPTY_SUBTREES[0],
             "Since the tree is empty the root should be the first empty item"
         );
     }
