@@ -130,11 +130,7 @@ mod tests {
     impl Aggregate<H, A> for u8 {
         const EMPTY_SUBTREES: [Self; H] = [0; H];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; A]) -> Self {
             items.into_iter().sum()
         }
     }

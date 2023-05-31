@@ -37,22 +37,13 @@ pub trait Aggregate<const H: usize, const A: usize>: Copy {
     /// Aggregate the given `items` to produce a single one. The given iterator
     /// is guaranteed to produce `A` number of items, from the leftmost to the
     /// rightmost child of a tree's node.
-    fn aggregate<'a, I>(items: I) -> Self
-    where
-        Self: 'a,
-        I: Iterator<Item = &'a Self>;
+    fn aggregate(items: [&Self; A]) -> Self;
 }
 
 // Implement aggregate for an item with empty data
 impl<const H: usize, const A: usize> Aggregate<H, A> for () {
     const EMPTY_SUBTREES: [(); H] = [(); H];
-
-    fn aggregate<'a, I>(_: I) -> Self
-    where
-        Self: 'a,
-        I: Iterator<Item = &'a Self>,
-    {
-    }
+    fn aggregate(_: [&Self; A]) -> Self {}
 }
 
 pub(crate) fn empty_nodes<T, F, const N: usize>(closure: F) -> [T; N]

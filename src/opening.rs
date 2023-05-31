@@ -77,7 +77,8 @@ where
                 return false;
             }
 
-            item = T::aggregate(self.branch[h].iter());
+            let ref_array = empty_nodes(|i| &self.branch[h][i]);
+            item = T::aggregate(ref_array);
         }
 
         self.root == item
@@ -145,11 +146,7 @@ mod tests {
     impl Aggregate<H, A> for String {
         const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; A]) -> Self {
             items.into_iter().fold(EMPTY_ITEM, |mut acc, s| {
                 acc.chars[acc.len..acc.len + s.len]
                     .copy_from_slice(&s.chars[..s.len]);

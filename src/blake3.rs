@@ -21,11 +21,7 @@ impl From<Blake3Hash> for Item {
 impl<const H: usize, const A: usize> Aggregate<H, A> for Item {
     const EMPTY_SUBTREES: [Self; H] = [EMPTY_HASH; H];
 
-    fn aggregate<'a, I>(items: I) -> Self
-    where
-        Self: 'a,
-        I: Iterator<Item = &'a Self>,
-    {
+    fn aggregate(items: [&Self; A]) -> Self {
         let mut hasher = Hasher::new();
         for item in items {
             hasher.update(&item.0);

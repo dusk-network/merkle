@@ -51,11 +51,7 @@ const EMPTY_ITEM: Annotation = Annotation {
 impl Aggregate<H, A> for Annotation {
     const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
 
-    fn aggregate<'a, I>(items: I) -> Self
-    where
-        Self: 'a,
-        I: Iterator<Item = &'a Self>,
-    {
+    fn aggregate(items: [&Self; A]) -> Self {
         let mut hasher = Hasher::new();
         let mut bh_range = None;
 

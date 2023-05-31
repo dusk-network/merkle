@@ -34,10 +34,7 @@ const EMPTY_ITEM: U8 = U8(0);
 impl Aggregate<H, A> for U8 {
     const EMPTY_SUBTREES: [U8; H] = [EMPTY_ITEM; H];
     
-    fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
+    fn aggregate(items: [&Self; A]) -> Self
     {
         items.into_iter().fold(U8(0), |acc, n| U8(acc.0 + n.0))
     }

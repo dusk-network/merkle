@@ -118,11 +118,7 @@ mod test {
     impl Aggregate<HEIGHT, ARITY> for Option<BHRange> {
         const EMPTY_SUBTREES: [Self; HEIGHT] = [None; HEIGHT];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; ARITY]) -> Self {
             let mut bh_range = None;
             for item in items {
                 bh_range = match (bh_range, item.as_ref()) {

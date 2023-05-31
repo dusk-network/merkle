@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Change `Aggregate` trait to provide an array of references instead of an iterator [#44]
 - Change the benchmarks to use criterion [#34]
 
 ### Added
@@ -47,6 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#44]: https://github.com/dusk-network/merkle/issues/44
 [#32]: https://github.com/dusk-network/merkle/issues/32
 [#29]: https://github.com/dusk-network/merkle/issues/29
 [#25]: https://github.com/dusk-network/merkle/issues/25

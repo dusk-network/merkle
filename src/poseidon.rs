@@ -70,23 +70,22 @@ where
         array
     };
 
-    fn aggregate<'a, I>(items: I) -> Self
-    where
-        Self: 'a,
-        I: Iterator<Item = &'a Self>,
-    {
+    fn aggregate(items: [&Self; A]) -> Self {
+        let empty = &T::EMPTY_SUBTREES[0];
+
         let mut level_hashes = [BlsScalar::zero(); A];
-        let mut level_data = [T::EMPTY_SUBTREES[0]; A];
+        let mut level_data = [empty; A];
+
         // grab hashes and data
-        items.enumerate().for_each(|(i, item)| {
+        items.into_iter().enumerate().for_each(|(i, item)| {
             level_hashes[i] = item.hash;
-            level_data[i] = item.data;
+            level_data[i] = &item.data;
         });
 
         // create new aggregated item
         Item {
             hash: poseidon_hash(&level_hashes),
-            data: T::aggregate(level_data.iter()),
+            data: T::aggregate(level_data),
         }
     }
 }
