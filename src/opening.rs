@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{empty_nodes, Aggregate, Node, Tree};
+use crate::{init_array, Aggregate, Node, Tree};
 
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
@@ -32,7 +32,7 @@ where
     /// If the given `position` is not in the `tree`.
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
-        let branch = empty_nodes(|h| empty_nodes(|_| T::EMPTY_SUBTREES[h]));
+        let branch = init_array(|h| init_array(|_| T::EMPTY_SUBTREES[h]));
 
         let mut opening = Self {
             root: tree.root.item,
@@ -77,7 +77,8 @@ where
                 return false;
             }
 
-            item = T::aggregate(self.branch[h].iter());
+            let ref_array = init_array(|i| &self.branch[h][i]);
+            item = T::aggregate(ref_array);
         }
 
         self.root == item
@@ -145,11 +146,7 @@ mod tests {
     impl Aggregate<H, A> for String {
         const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; A]) -> Self {
             items.into_iter().fold(EMPTY_ITEM, |mut acc, s| {
                 acc.chars[acc.len..acc.len + s.len]
                     .copy_from_slice(&s.chars[..s.len]);

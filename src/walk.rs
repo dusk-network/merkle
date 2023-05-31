@@ -140,22 +140,14 @@ mod tests {
 
     const LARGER_THAN: u64 = 6;
 
-    fn aggregate<'a, I>(items: I) -> Max
-    where
-        Max: 'a,
-        I: Iterator<Item = &'a Max>,
-    {
-        Max(items.map(|i| i.0).max().unwrap_or_default())
+    fn aggregate<const A: usize>(items: [&Max; A]) -> Max {
+        Max(items.into_iter().map(|i| i.0).max().unwrap_or_default())
     }
 
     impl Aggregate<HEIGHT_2, ARITY_2> for Max {
         const EMPTY_SUBTREES: [Self; HEIGHT_2] = [Max(0); HEIGHT_2];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; ARITY_2]) -> Self {
             aggregate(items)
         }
     }
@@ -163,11 +155,7 @@ mod tests {
     impl Aggregate<HEIGHT_17, ARITY_4> for Max {
         const EMPTY_SUBTREES: [Self; HEIGHT_17] = [Max(0); HEIGHT_17];
 
-        fn aggregate<'a, I>(items: I) -> Self
-        where
-            Self: 'a,
-            I: Iterator<Item = &'a Self>,
-        {
+        fn aggregate(items: [&Self; ARITY_4]) -> Self {
             aggregate(items)
         }
     }

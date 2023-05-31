@@ -56,12 +56,14 @@ where
     fn compute_item(&mut self, height: usize) {
         let empty = &T::EMPTY_SUBTREES[height];
 
-        self.item = T::aggregate(
-            self.children
-                .iter()
-                .map(|node| node.as_ref().map(|node| &node.as_ref().item))
-                .map(|item| item.unwrap_or(empty)),
-        );
+        let mut ref_array = [empty; A];
+        for (i, r) in ref_array.iter_mut().enumerate() {
+            if let Some(child) = &self.children[i] {
+                *r = &child.item;
+            }
+        }
+
+        self.item = T::aggregate(ref_array);
     }
 
     pub(crate) fn child_location(height: usize, position: u64) -> (usize, u64) {
