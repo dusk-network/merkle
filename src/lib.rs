@@ -46,7 +46,7 @@ impl<const H: usize, const A: usize> Aggregate<H, A> for () {
     fn aggregate(_: [&Self; A]) -> Self {}
 }
 
-pub(crate) fn empty_nodes<T, F, const N: usize>(closure: F) -> [T; N]
+pub(crate) fn init_array<T, F, const N: usize>(closure: F) -> [T; N]
 where
     F: Fn(usize) -> T,
 {
