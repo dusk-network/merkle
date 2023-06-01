@@ -7,14 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add lazy computation of node items [#37]
+- Add missing Rkyv derivations for poseidon `Item`
+
 ### Changed
 
+- Return `Ref<T>` from `Tree::root` instead of `&T` [#37]
+- `Walk` now binds `T` to be `Aggregate` [#37]
 - Change `Aggregate` trait to provide an array of references instead of an iterator [#44]
 - Change the benchmarks to use criterion [#34]
 
-### Added
+### Removed
 
-- Added missing Rkyv derivations for poseidon `Item`
+- Remove `Hash` derivation on `Tree` [#37]
 
 ## [0.2.0] - 2023-05-17
 
@@ -49,6 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#44]: https://github.com/dusk-network/merkle/issues/44
+[#37]: https://github.com/dusk-network/merkle/issues/37
 [#32]: https://github.com/dusk-network/merkle/issues/32
 [#29]: https://github.com/dusk-network/merkle/issues/29
 [#25]: https://github.com/dusk-network/merkle/issues/25

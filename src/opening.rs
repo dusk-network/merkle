@@ -35,7 +35,7 @@ where
         let branch = init_array(|h| init_array(|_| T::EMPTY_SUBTREES[h]));
 
         let mut opening = Self {
-            root: tree.root.item,
+            root: *tree.root.item(0),
             branch,
             positions,
         };
@@ -77,8 +77,8 @@ where
                 return false;
             }
 
-            let ref_array = init_array(|i| &self.branch[h][i]);
-            item = T::aggregate(ref_array);
+            let item_refs = init_array(|i| &self.branch[h][i]);
+            item = T::aggregate(item_refs);
         }
 
         self.root == item
@@ -107,7 +107,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
 
     for i in 0..A {
         if let Some(child) = &node.children[i] {
-            opening.branch[height][i] = child.item;
+            opening.branch[height][i] = *child.item(height);
         }
     }
     opening.positions[height] = child_index;
