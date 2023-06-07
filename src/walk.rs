@@ -21,7 +21,7 @@ pub struct Walk<'a, T, W, const H: usize, const A: usize> {
 
 impl<'a, T, W, const H: usize, const A: usize> Walk<'a, T, W, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Aggregate<A>,
     W: Fn(&T) -> bool,
 {
     pub(crate) fn new(tree: &'a Tree<T, H, A>, walker: W) -> Self {
@@ -114,7 +114,7 @@ where
 
 impl<'a, T, W, const H: usize, const A: usize> Iterator for Walk<'a, T, W, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Aggregate<A>,
     W: Fn(&T) -> bool,
 {
     type Item = Ref<'a, T>;
@@ -145,23 +145,11 @@ mod tests {
 
     const LARGER_THAN: u64 = 6;
 
-    fn aggregate<const A: usize>(items: [&Max; A]) -> Max {
-        Max(items.into_iter().map(|i| i.0).max().unwrap_or_default())
-    }
+    impl<const A: usize> Aggregate<A> for Max {
+        const EMPTY_SUBTREE: Self = Max(0);
 
-    impl Aggregate<HEIGHT_2, ARITY_2> for Max {
-        const EMPTY_SUBTREES: [Self; HEIGHT_2] = [Max(0); HEIGHT_2];
-
-        fn aggregate(items: [&Self; ARITY_2]) -> Self {
-            aggregate(items)
-        }
-    }
-
-    impl Aggregate<HEIGHT_17, ARITY_4> for Max {
-        const EMPTY_SUBTREES: [Self; HEIGHT_17] = [Max(0); HEIGHT_17];
-
-        fn aggregate(items: [&Self; ARITY_4]) -> Self {
-            aggregate(items)
+        fn aggregate(items: [&Self; A]) -> Self {
+            Self(items.into_iter().map(|i| i.0).max().unwrap_or_default())
         }
     }
 
