@@ -48,8 +48,8 @@ const EMPTY_ITEM: Annotation = Annotation {
     bh_range: None,
 };
 
-impl Aggregate<H, A> for Annotation {
-    const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
+impl Aggregate<A> for Annotation {
+    const EMPTY_SUBTREE: Self = EMPTY_ITEM;
 
     fn aggregate(items: [&Self; A]) -> Self {
         let mut hasher = Hasher::new();
