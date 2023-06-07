@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add lazy computation of node items [#37]
 - Add missing Rkyv derivations for poseidon `Item`
+- Add smallest_subtree functionality [#38]
 
 ### Changed
 
@@ -56,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#44]: https://github.com/dusk-network/merkle/issues/44
+[#38]: https://github.com/dusk-network/merkle/issues/38
 [#37]: https://github.com/dusk-network/merkle/issues/37
 [#32]: https://github.com/dusk-network/merkle/issues/32
 [#29]: https://github.com/dusk-network/merkle/issues/29

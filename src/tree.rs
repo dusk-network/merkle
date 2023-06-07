@@ -53,9 +53,6 @@ where
 
     /// Remove and return the item at the given `position` in the tree if it
     /// exists.
-    // Allowing for missing docs on panic, since panic is impossible. See
-    // comment below.
-    #[allow(clippy::missing_panics_doc)]
     pub fn remove(&mut self, position: u64) -> Option<T> {
         if !self.positions.contains(&position) {
             return None;
@@ -90,10 +87,40 @@ where
     }
 
     /// Get the root of the merkle tree.
-    ///
-    /// It is none if the tree is empty.
     pub fn root(&self) -> Ref<T> {
         self.root.item(0)
+    }
+
+    /// Returns the root of the smallest sub-tree that holds all the leaves.
+    ///
+    /// Returns None when the tree is empty. In this case use
+    /// `T::EMPTY_SUBTREES[H - 1]` for the root instead.
+    pub fn smallest_subtree(&self) -> (Option<Ref<T>>, usize) {
+        let mut smallest_node = &self.root;
+        let mut height = H;
+        loop {
+            let mut children = smallest_node.children.iter().flatten();
+            match children.next() {
+                // when the root has no children, the tree is empty.
+                // In this case the node that holds the smallest subtree doesn't
+                // exist and we can not return it.
+                None => return (None, 0),
+                Some(child) => {
+                    // if there is no more than one child and we are not at the
+                    // end of the tree, we need to continue to traverse
+                    if children.next().is_none() && height > 1 {
+                        smallest_node = child;
+                    }
+                    // otherwise we return the item of the current node and the
+                    // current height as the root and height of the smallest
+                    // subtree
+                    else {
+                        return (Some(smallest_node.item(0)), height);
+                    }
+                }
+            }
+            height -= 1;
+        }
     }
 
     /// Returns true if the tree contains a leaf at the given `position`.
@@ -135,11 +162,11 @@ mod tests {
     const H: usize = 3;
     const A: usize = 2;
 
-    type TestTree = Tree<u8, H, A>;
+    type SumTree = Tree<u8, H, A>;
 
     #[test]
     fn tree_insertion() {
-        let mut tree = TestTree::new();
+        let mut tree = SumTree::new();
 
         tree.insert(5, 42);
         tree.insert(6, 42);
@@ -154,7 +181,7 @@ mod tests {
 
     #[test]
     fn tree_deletion() {
-        let mut tree = TestTree::new();
+        let mut tree = SumTree::new();
 
         tree.insert(5, 42);
         tree.insert(6, 42);
@@ -169,6 +196,8 @@ mod tests {
             "There should be one element left in the tree"
         );
 
+        assert_eq!(*tree.root(), 42);
+
         tree.remove(6);
         assert!(tree.is_empty(), "The tree should be empty");
         assert_eq!(
@@ -181,7 +210,106 @@ mod tests {
     #[test]
     #[should_panic]
     fn tree_insertion_out_of_bounds() {
-        let mut tree = TestTree::new();
+        let mut tree = SumTree::new();
         tree.insert(tree.capacity(), 42);
+    }
+
+    // create test tree for shrunken root:
+
+    type RangeTree = Tree<Option<Range>, H, A>;
+
+    // min and max are either
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    struct Range {
+        min: u64,
+        max: u64,
+    }
+
+    impl Range {
+        pub fn new(min: u64, max: u64) -> Self {
+            Range { min, max }
+        }
+    }
+
+    impl Aggregate<H, A> for Option<Range> {
+        const EMPTY_SUBTREES: [Self; H] = [None; H];
+
+        fn aggregate(items: [&Self; A]) -> Self {
+            let mut bh_range = None;
+
+            for item in items {
+                bh_range = match (bh_range, item.as_ref()) {
+                    (None, None) => None,
+                    (None, Some(r)) => Some(*r),
+                    (Some(r), None) => Some(r),
+                    (Some(bh_range), Some(item_bh_range)) => {
+                        let min =
+                            core::cmp::min(item_bh_range.min, bh_range.min);
+                        let max =
+                            core::cmp::max(item_bh_range.max, bh_range.max);
+                        Some(Range { min, max })
+                    }
+                };
+            }
+
+            bh_range
+        }
+    }
+
+    #[test]
+    fn smallest_subtree() {
+        let mut tree = RangeTree::new();
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert!(smallest_subtree.is_none());
+        assert_eq!(height, 0);
+        drop(smallest_subtree);
+
+        tree.insert(0, Some(Range::new(0, 0)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 0)));
+        assert_eq!(height, 1);
+
+        tree.insert(1, Some(Range::new(1, 1)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 1)));
+        assert_eq!(height, 1);
+
+        tree.insert(2, Some(Range::new(2, 2)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 2)));
+        assert_eq!(height, 2);
+
+        tree.insert(3, Some(Range::new(3, 3)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 3)));
+        assert_eq!(height, 2);
+
+        tree.insert(7, Some(Range::new(7, 7)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 7)));
+        assert_eq!(height, 3);
+
+        tree.remove(0);
+        tree.remove(1);
+        tree.remove(2);
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(3, 7)));
+        assert_eq!(height, 3);
+
+        tree.remove(3);
+        tree.insert(4, Some(Range::new(4, 4)));
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(4, 7)));
+        assert_eq!(height, 2);
+
+        tree.remove(4);
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(7, 7)));
+        assert_eq!(height, 1);
+
+        tree.remove(7);
+        let (smallest_subtree, height) = tree.smallest_subtree();
+        assert!(smallest_subtree.is_none());
+        assert_eq!(height, 0);
     }
 }
