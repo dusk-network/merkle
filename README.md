@@ -31,8 +31,8 @@ impl From<u8> for U8 {
 
 const EMPTY_ITEM: U8 = U8(0);
 
-impl Aggregate<H, A> for U8 {
-    const EMPTY_SUBTREES: [U8; H] = [EMPTY_ITEM; H];
+impl Aggregate<A> for U8 {
+    const EMPTY_SUBTREE: U8 = EMPTY_ITEM;
     
     fn aggregate(items: [&Self; A]) -> Self
     {
@@ -46,8 +46,8 @@ const A: usize = 2;
 
 let mut tree = Tree::<U8, H, A>::new();
 
-// No elements have been inserted so the root is the first empty item.
-assert_eq!(*tree.root(), U8::EMPTY_SUBTREES[0]);
+// No elements have been inserted so the root is the empty subtree.
+assert_eq!(*tree.root(), U8::EMPTY_SUBTREE);
 
 tree.insert(4, 21);
 tree.insert(7, 21);

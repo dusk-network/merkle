@@ -7,26 +7,18 @@
 use alloc::boxed::Box;
 use core::cell::{Ref, RefCell};
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::{CheckBytes, Error as BytecheckError};
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::Serializer, validation::ArchiveContext, Archive, Deserialize,
-    Fallible, Serialize,
-};
-
 use crate::{capacity, init_array, Aggregate};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Serialize, Deserialize),
-    archive(bound(serialize = "__S: Serializer")),
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize),
+    archive(bound(serialize = "__S: rkyv::ser::Serializer")),
     archive_attr(
-        derive(CheckBytes),
+        derive(bytecheck::CheckBytes),
         doc(hidden),
         check_bytes(
-            bound = "__C: ArchiveContext, <__C as Fallible>::Error: BytecheckError"
+            bound = "__C: rkyv::validation::ArchiveContext, <__C as rkyv::Fallible>::Error: bytecheck::Error"
         )
     )
 )]
@@ -39,7 +31,7 @@ pub struct Node<T, const H: usize, const A: usize> {
 
 impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Aggregate<A>,
 {
     const INIT_NODE: Option<Box<Node<T, H, A>>> = None;
 
@@ -53,13 +45,15 @@ where
         }
     }
 
-    pub(crate) fn item(&self, height: usize) -> Ref<T> {
+    pub(crate) fn item(&self) -> Ref<T> {
+        // a leaf will always have a computed item, so we never go into it
         if self.item.borrow().is_none() {
-            let empty = &T::EMPTY_SUBTREES[height + 1];
-            let mut item_refs = [empty; A];
+            // compute our item, recursing into the children.
+            let empty_subtree = &T::EMPTY_SUBTREE;
+            let mut item_refs = [empty_subtree; A];
 
             let child_items: [Option<Ref<T>>; A] = init_array(|i| {
-                self.children[i].as_ref().map(|item| item.item(height))
+                self.children[i].as_ref().map(|item| item.item())
             });
 
             let mut has_children = false;
@@ -71,9 +65,9 @@ where
             });
 
             if has_children {
-                self.item.replace(Some(T::aggregate(item_refs)));
+                self.item.replace(Some(T::EMPTY_SUBTREE));
             } else {
-                self.item.replace(Some(T::EMPTY_SUBTREES[height]));
+                self.item.replace(Some(T::aggregate(item_refs)));
             }
         }
 
