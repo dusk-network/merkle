@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Documented poseidon related types [#31]
+
+### Changed
+
+- Modify `Aggregate` to include only one `EMPTY_SUBTREE` [#49]
+- Relax `Aggregate` bounds to not be `Copy` [#49]
+- Change return of `Tree::smallest_subtree` to `Ref<T>` as opposed to `Option<Ref<T>>` [#49]
+
 ## [0.3.0] - 2023-06-07
 
 ### Added
@@ -58,10 +68,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#49]: https://github.com/dusk-network/merkle/issues/49
 [#44]: https://github.com/dusk-network/merkle/issues/44
 [#38]: https://github.com/dusk-network/merkle/issues/38
 [#37]: https://github.com/dusk-network/merkle/issues/37
 [#32]: https://github.com/dusk-network/merkle/issues/32
+[#31]: https://github.com/dusk-network/merkle/issues/31
 [#29]: https://github.com/dusk-network/merkle/issues/29
 [#25]: https://github.com/dusk-network/merkle/issues/25
 [#21]: https://github.com/dusk-network/merkle/issues/21

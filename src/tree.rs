@@ -7,22 +7,14 @@
 use alloc::collections::BTreeSet;
 use core::cell::Ref;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::{CheckBytes, Error as BytecheckError};
-#[cfg(feature = "rkyv-impl")]
-use rkyv::{
-    ser::Serializer, validation::ArchiveContext, Archive, Deserialize,
-    Fallible, Serialize,
-};
-
 use crate::{capacity, Aggregate, Node, Opening, Walk};
 
 /// A sparse Merkle tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(Archive, Serialize, Deserialize),
-    archive_attr(derive(CheckBytes))
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize),
+    archive_attr(derive(bytecheck::CheckBytes))
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
     pub(crate) root: Node<T, H, A>,
@@ -31,7 +23,7 @@ pub struct Tree<T, const H: usize, const A: usize> {
 
 impl<T, const H: usize, const A: usize> Tree<T, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Aggregate<A>,
 {
     /// Create a new merkle tree with the given initial `root`.
     #[must_use]
@@ -65,7 +57,10 @@ where
     }
 
     /// Returns the [`Opening`] for the given `position` if it exists.
-    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>> {
+    pub fn opening(&self, position: u64) -> Option<Opening<T, H, A>>
+    where
+        T: Clone,
+    {
         if !self.positions.contains(&position) {
             return None;
         }
@@ -88,23 +83,20 @@ where
 
     /// Get the root of the merkle tree.
     pub fn root(&self) -> Ref<T> {
-        self.root.item(0)
+        self.root.item()
     }
 
     /// Returns the root of the smallest sub-tree that holds all the leaves.
-    ///
-    /// Returns None when the tree is empty. In this case use
-    /// `T::EMPTY_SUBTREES[H - 1]` for the root instead.
-    pub fn smallest_subtree(&self) -> (Option<Ref<T>>, usize) {
+    pub fn smallest_subtree(&self) -> (Ref<T>, usize) {
         let mut smallest_node = &self.root;
         let mut height = H;
         loop {
             let mut children = smallest_node.children.iter().flatten();
             match children.next() {
-                // when the root has no children, the tree is empty.
-                // In this case the node that holds the smallest subtree doesn't
-                // exist and we can not return it.
-                None => return (None, 0),
+                // when the root has no children, the tree is empty and we
+                // return its root. This is only possible because the empty
+                // subtrees are the same for each level.
+                None => return (self.root(), 0),
                 Some(child) => {
                     // if there is no more than one child and we are not at the
                     // end of the tree, we need to continue to traverse
@@ -115,7 +107,7 @@ where
                     // current height as the root and height of the smallest
                     // subtree
                     else {
-                        return (Some(smallest_node.item(0)), height);
+                        return (smallest_node.item(), height);
                     }
                 }
             }
@@ -151,8 +143,8 @@ where
 mod tests {
     use super::*;
 
-    impl Aggregate<H, A> for u8 {
-        const EMPTY_SUBTREES: [Self; H] = [0; H];
+    impl Aggregate<A> for u8 {
+        const EMPTY_SUBTREE: Self = 0;
 
         fn aggregate(items: [&Self; A]) -> Self {
             items.into_iter().sum()
@@ -202,7 +194,7 @@ mod tests {
         assert!(tree.is_empty(), "The tree should be empty");
         assert_eq!(
             *tree.root(),
-            u8::EMPTY_SUBTREES[0],
+            u8::EMPTY_SUBTREE,
             "Since the tree is empty the root should be the first empty item"
         );
     }
@@ -231,8 +223,8 @@ mod tests {
         }
     }
 
-    impl Aggregate<H, A> for Option<Range> {
-        const EMPTY_SUBTREES: [Self; H] = [None; H];
+    impl Aggregate<A> for Option<Range> {
+        const EMPTY_SUBTREE: Self = None;
 
         fn aggregate(items: [&Self; A]) -> Self {
             let mut bh_range = None;
@@ -258,56 +250,75 @@ mod tests {
 
     #[test]
     fn smallest_subtree() {
+        let empty_root: Option<Range> = None;
+
         let mut tree = RangeTree::new();
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert!(smallest_subtree.is_none());
+        assert_eq!(*smallest_subtree, empty_root);
         assert_eq!(height, 0);
         drop(smallest_subtree);
 
         tree.insert(0, Some(Range::new(0, 0)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 0)));
+        assert_eq!(*smallest_subtree, Some(Range::new(0, 0)));
         assert_eq!(height, 1);
+        drop(smallest_subtree);
 
         tree.insert(1, Some(Range::new(1, 1)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 1)));
+        assert_eq!(*smallest_subtree, Some(Range::new(0, 1)));
         assert_eq!(height, 1);
+        drop(smallest_subtree);
 
         tree.insert(2, Some(Range::new(2, 2)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 2)));
+        assert_eq!(*smallest_subtree, Some(Range::new(0, 2)));
         assert_eq!(height, 2);
+        drop(smallest_subtree);
 
         tree.insert(3, Some(Range::new(3, 3)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 3)));
+        assert_eq!(*smallest_subtree, Some(Range::new(0, 3)));
         assert_eq!(height, 2);
+        drop(smallest_subtree);
 
         tree.insert(7, Some(Range::new(7, 7)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(0, 7)));
+        assert_eq!(*smallest_subtree, Some(Range::new(0, 7)));
         assert_eq!(height, 3);
+        drop(smallest_subtree);
 
         tree.remove(0);
         tree.remove(1);
         tree.remove(2);
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(3, 7)));
+        assert_eq!(*smallest_subtree, Some(Range::new(3, 7)));
         assert_eq!(height, 3);
+        drop(smallest_subtree);
 
         tree.remove(3);
         tree.insert(4, Some(Range::new(4, 4)));
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(4, 7)));
+        assert_eq!(*smallest_subtree, Some(Range::new(4, 7)));
         assert_eq!(height, 2);
+        drop(smallest_subtree);
 
         tree.remove(4);
+
         let (smallest_subtree, height) = tree.smallest_subtree();
-        assert_eq!(*smallest_subtree.unwrap(), Some(Range::new(7, 7)));
+        assert_eq!(*smallest_subtree, Some(Range::new(7, 7)));
         assert_eq!(height, 1);
+        drop(smallest_subtree);
 
         tree.remove(7);
+
         let (smallest_subtree, height) = tree.smallest_subtree();
         assert!(smallest_subtree.is_none());
         assert_eq!(height, 0);

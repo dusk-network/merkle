@@ -28,19 +28,18 @@ pub use opening::*;
 pub use tree::*;
 pub use walk::*;
 
-/// A type that can be produced by aggregating multiple instances of itself, at
-/// certain heights of the tree.
-pub trait Aggregate<const H: usize, const A: usize>: Copy {
-    /// The items to be used for a given empty subtree at the given height.
-    const EMPTY_SUBTREES: [Self; H];
+/// A type that can be produced by aggregating `A` instances of itself.
+pub trait Aggregate<const A: usize> {
+    /// The value used in place of an empty subtree.
+    const EMPTY_SUBTREE: Self;
 
     /// Aggregate the given array of item references to return a single item.
     fn aggregate(items: [&Self; A]) -> Self;
 }
 
 // Implement aggregate for an item with empty data
-impl<const H: usize, const A: usize> Aggregate<H, A> for () {
-    const EMPTY_SUBTREES: [(); H] = [(); H];
+impl<const A: usize> Aggregate<A> for () {
+    const EMPTY_SUBTREE: Self = ();
     fn aggregate(_: [&Self; A]) -> Self {}
 }
 

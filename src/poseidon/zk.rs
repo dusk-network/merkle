@@ -12,7 +12,7 @@ use dusk_poseidon::sponge::gadget as poseidon_hash_gadget;
 
 impl<T, const H: usize, const A: usize> Opening<T, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Clone + Aggregate<A>,
 {
     /// Builds the gadget for the poseidon opening and returns the computed
     /// root.
@@ -25,7 +25,7 @@ where
         // if i == position: pos_bits[i] = 1 else: pos_bits[i] = 0
         let mut pos_bits = [[C::ZERO; A]; H];
         for h in (0..H).rev() {
-            let level = self.branch()[h];
+            let level = &self.branch()[h];
             for (i, item) in level.iter().enumerate() {
                 if i == self.positions()[h] {
                     pos_bits[h][i] = composer.append_witness(BlsScalar::one());
@@ -115,8 +115,8 @@ mod test {
     }
 
     // implement Aggregate for BHRange type
-    impl Aggregate<HEIGHT, ARITY> for Option<BHRange> {
-        const EMPTY_SUBTREES: [Self; HEIGHT] = [None; HEIGHT];
+    impl Aggregate<ARITY> for Option<BHRange> {
+        const EMPTY_SUBTREE: Self = None;
 
         fn aggregate(items: [&Self; ARITY]) -> Self {
             let mut bh_range = None;
@@ -146,12 +146,12 @@ mod test {
     impl Default for OpeningCircuit {
         fn default() -> Self {
             let mut tree = Tree::new();
-            tree.insert(0, PoseidonItem::EMPTY_SUBTREES[0]);
+            tree.insert(0, PoseidonItem::EMPTY_SUBTREE);
             let opening =
                 tree.opening(0).expect("There is a leaf at position 0");
             Self {
                 opening,
-                leaf: PoseidonItem::EMPTY_SUBTREES[0],
+                leaf: PoseidonItem::EMPTY_SUBTREE,
             }
         }
     }

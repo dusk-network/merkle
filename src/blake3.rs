@@ -18,8 +18,8 @@ impl From<Blake3Hash> for Item {
     }
 }
 
-impl<const H: usize, const A: usize> Aggregate<H, A> for Item {
-    const EMPTY_SUBTREES: [Self; H] = [EMPTY_HASH; H];
+impl<const A: usize> Aggregate<A> for Item {
+    const EMPTY_SUBTREE: Self = EMPTY_HASH;
 
     fn aggregate(items: [&Self; A]) -> Self {
         let mut hasher = Hasher::new();
@@ -31,6 +31,7 @@ impl<const H: usize, const A: usize> Aggregate<H, A> for Item {
 }
 
 impl Item {
+    #[must_use]
     pub fn new(bytes: [u8; 32]) -> Self {
         Item(bytes)
     }

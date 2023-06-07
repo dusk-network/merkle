@@ -26,16 +26,16 @@ pub struct Opening<T, const H: usize, const A: usize> {
 
 impl<T, const H: usize, const A: usize> Opening<T, H, A>
 where
-    T: Aggregate<H, A>,
+    T: Aggregate<A> + Clone,
 {
     /// # Panics
     /// If the given `position` is not in the `tree`.
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
         let positions = [0; H];
-        let branch = init_array(|h| init_array(|_| T::EMPTY_SUBTREES[h]));
+        let branch = init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
 
         let mut opening = Self {
-            root: *tree.root.item(0),
+            root: tree.root.item().clone(),
             branch,
             positions,
         };
@@ -77,7 +77,15 @@ where
                 return false;
             }
 
-            let item_refs = init_array(|i| &self.branch[h][i]);
+            let empty_subtree = &T::EMPTY_SUBTREE;
+
+            let mut item_refs = [empty_subtree; A];
+            item_refs.iter_mut().zip(&self.branch[h]).for_each(
+                |(r, item_ref)| {
+                    *r = item_ref;
+                },
+            );
+
             item = T::aggregate(item_refs);
         }
 
@@ -91,7 +99,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
     height: usize,
     position: u64,
 ) where
-    T: Aggregate<H, A>,
+    T: Aggregate<A> + Clone,
 {
     if height == H {
         return;
@@ -107,7 +115,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
 
     for i in 0..A {
         if let Some(child) = &node.children[i] {
-            opening.branch[height][i] = *child.item(height);
+            opening.branch[height][i] = child.item().clone();
         }
     }
     opening.positions[height] = child_index;
@@ -143,8 +151,8 @@ mod tests {
     };
 
     /// A simple aggregator that concatenates strings.
-    impl Aggregate<H, A> for String {
-        const EMPTY_SUBTREES: [Self; H] = [EMPTY_ITEM; H];
+    impl Aggregate<A> for String {
+        const EMPTY_SUBTREE: Self = EMPTY_ITEM;
 
         fn aggregate(items: [&Self; A]) -> Self {
             items.into_iter().fold(EMPTY_ITEM, |mut acc, s| {
