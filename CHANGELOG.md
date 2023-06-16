@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## Added
+
+- Add more comprehensive benchmarks for `blake3` tree [#54]
+- Add `to_var_bytes` and `from_slice` to `Opening` [#55]
+
 ## [0.4.0] - 2023-06-07
 
 ### Added
@@ -68,6 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#55]: https://github.com/dusk-network/merkle/issues/55
+[#54]: https://github.com/dusk-network/merkle/issues/54
 [#49]: https://github.com/dusk-network/merkle/issues/49
 [#44]: https://github.com/dusk-network/merkle/issues/44
 [#38]: https://github.com/dusk-network/merkle/issues/38

@@ -15,6 +15,7 @@ edition = "2021"
 license = "MPL-2.0"
 
 [dependencies]
+dusk-bytes = "0.1"
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 blake3 = { version = "1", optional = true, default-features = false }

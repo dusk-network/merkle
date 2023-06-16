@@ -6,8 +6,11 @@
 
 use crate::{init_array, Aggregate, Node, Tree};
 
+use alloc::vec::Vec;
+
 #[cfg(feature = "rkyv-impl")]
 use bytecheck::CheckBytes;
+use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
@@ -90,6 +93,90 @@ where
         }
 
         self.root == item
+    }
+
+    /// Serialize an [`Opening`] to a vector of bytes.
+    // Once the new implementation of the `Serializable` trait becomes
+    // available, we will want that instead, but for the time being we use
+    // this implementation.
+    pub fn to_var_bytes<const T_SIZE: usize>(&self) -> Vec<u8>
+    where
+        T: Serializable<T_SIZE>,
+    {
+        let mut bytes = Vec::with_capacity(
+            (1 + H * A) * T_SIZE + H * (u32::BITS as usize / 8),
+        );
+
+        // serialize root
+        bytes.extend(&self.root.to_bytes());
+
+        // serialize branch
+        for level in self.branch.iter() {
+            for item in level.iter() {
+                bytes.extend(&item.to_bytes());
+            }
+        }
+
+        // serialize positions
+        for pos in self.positions.iter() {
+            // the positions will be in the range [0..A[, so casting to u32
+            // is never going to be a problem
+            #[allow(clippy::cast_possible_truncation)]
+            bytes.extend(&(*pos as u32).to_bytes());
+        }
+
+        bytes
+    }
+
+    /// Deserialize an [`Opening`] from a slice of bytes.
+    ///
+    /// # Errors
+    ///
+    /// Will return [`dusk_bytes::Error`] in case of a deserialization error.
+    // Once the new implementation of the `Serializable` trait becomes
+    // available, we will want that instead, but for the time being we use
+    // this implementation.
+    pub fn from_slice<const T_SIZE: usize>(
+        buf: &[u8],
+    ) -> Result<Self, BytesError>
+    where
+        T: Serializable<T_SIZE>,
+        <T as Serializable<T_SIZE>>::Error: dusk_bytes::BadLength,
+        dusk_bytes::Error: From<<T as Serializable<T_SIZE>>::Error>,
+    {
+        let expected_len = (1 + H * A) * T_SIZE + H * (u32::BITS as usize / 8);
+        if buf.len() != expected_len {
+            return Err(BytesError::BadLength {
+                found: (buf.len()),
+                expected: (expected_len),
+            });
+        }
+
+        let mut bytes = buf;
+
+        // deserialize root
+        let root = T::from_reader(&mut bytes)?;
+
+        // deserialize branch
+        let mut branch: [[T; A]; H] =
+            init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
+        for level in branch.iter_mut() {
+            for item in level.iter_mut() {
+                *item = T::from_reader(&mut bytes)?;
+            }
+        }
+
+        // deserialize positions
+        let mut positions = [0usize; H];
+        for pos in positions.iter_mut() {
+            *pos = u32::from_reader(&mut bytes)? as usize;
+        }
+
+        Ok(Self {
+            root,
+            branch,
+            positions,
+        })
     }
 }
 
