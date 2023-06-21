@@ -7,8 +7,8 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 
 use dusk_bls12_381::BlsScalar;
-use dusk_merkle::poseidon::{Item, Tree};
 use dusk_poseidon::sponge::hash as poseidon_hash;
+use poseidon_merkle::{Item, Tree};
 
 use rand::{RngCore, SeedableRng};
 
