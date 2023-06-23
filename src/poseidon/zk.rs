@@ -8,7 +8,7 @@ use crate::poseidon::Opening;
 use crate::Aggregate;
 
 use dusk_plonk::prelude::{BlsScalar, Composer, Constraint, Witness};
-use dusk_poseidon::sponge::gadget as poseidon_hash_gadget;
+use dusk_poseidon::sponge::merkle::gadget as poseidon_merkle_gadget;
 
 impl<T, const H: usize, const A: usize> Opening<T, H, A>
 where
@@ -73,7 +73,7 @@ where
             }
 
             // hash the current level
-            needle = poseidon_hash_gadget(composer, &level_witnesses[h]);
+            needle = poseidon_merkle_gadget(composer, &level_witnesses[h]);
         }
 
         // return the computed root as a witness in the circuit
@@ -90,18 +90,18 @@ mod test {
     use dusk_plonk::prelude::{
         Circuit, Compiler, Composer, Error, PublicParameters,
     };
-    use dusk_poseidon::sponge::hash as poseidon_hash;
+    use dusk_poseidon::sponge::merkle::hash as poseidon_merkle;
     use rand::rngs::StdRng;
     use rand::{RngCore, SeedableRng};
 
     use crate::poseidon::Item;
     use crate::poseidon::Tree;
 
-    // set max circuit size to 2^13 gates
-    const CAPACITY: usize = 13;
+    // set max circuit size to 2^15 gates
+    const CAPACITY: usize = 15;
 
     // set height and arity of the poseidon merkle tree
-    const HEIGHT: usize = 4;
+    const HEIGHT: usize = 17;
     const ARITY: usize = 4;
 
     type PoseidonItem = Item<Option<BHRange>>;
@@ -201,7 +201,7 @@ mod test {
         let mut leaf = PoseidonItem::new(BlsScalar::zero(), None);
         let mut position = 0;
         for bh in 0..100 {
-            let hash = poseidon_hash(&[BlsScalar::random(rng)]);
+            let hash = poseidon_merkle(&[BlsScalar::random(rng)]);
             position = rng.next_u64() % u8::MAX as u64;
             leaf = PoseidonItem::new(hash, Some(BHRange { min: bh, max: bh }));
             tree.insert(position as u64, leaf);
