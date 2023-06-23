@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add more comprehensive benchmarks for `blake3` tree [#54]
 - Add `to_var_bytes` and `from_slice` to `Opening` [#55]
 
+## Changed
+
+- Update to poseidon hash optimized for merkle openings [#62]
+
 ## [0.4.0] - 2023-06-07
 
 ### Added
@@ -75,6 +79,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#62]: https://github.com/dusk-network/merkle/issues/62
 [#55]: https://github.com/dusk-network/merkle/issues/55
 [#54]: https://github.com/dusk-network/merkle/issues/54
 [#49]: https://github.com/dusk-network/merkle/issues/49

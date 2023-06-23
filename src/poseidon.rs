@@ -8,7 +8,7 @@
 mod zk;
 
 use dusk_bls12_381::BlsScalar;
-use dusk_poseidon::sponge::hash as poseidon_hash;
+use dusk_poseidon::sponge::merkle::hash as poseidon_merkle_hash;
 
 use crate::Aggregate;
 
@@ -102,7 +102,7 @@ where
 
         // create new aggregated item
         Item {
-            hash: poseidon_hash(&level_hashes),
+            hash: poseidon_merkle_hash(&level_hashes),
             data: T::aggregate(level_data),
         }
     }
