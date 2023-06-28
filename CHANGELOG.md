@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Changed
 
 - Update to poseidon hash optimized for merkle openings [#62]
+- Update `dusk-plonk` from `0.13` to `0.14`
 
 ## [0.4.0] - 2023-06-07
 
