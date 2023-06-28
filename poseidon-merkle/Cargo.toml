@@ -4,7 +4,7 @@ description = "Crate implementing Dusk Network's Merkle tree"
 version = "0.1.0"
 
 categories = ["data-structures", "no-std"]
-keywords = ["tree", "merkle", "poseidon", "hash", "data", "structure"]
+keywords = ["tree", "merkle", "poseidon", "data", "structure"]
 repository = "https://github.com/dusk-network/merkle"
 authors = [
     "Eduardo Leegwater Simões <eduardo@dusk.network>",
