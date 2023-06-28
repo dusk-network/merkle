@@ -13,11 +13,6 @@ extern crate alloc;
 use core::mem::MaybeUninit;
 use core::ptr;
 
-#[cfg(feature = "blake3")]
-pub mod blake3;
-#[cfg(feature = "poseidon")]
-pub mod poseidon;
-
 mod node;
 mod opening;
 mod tree;

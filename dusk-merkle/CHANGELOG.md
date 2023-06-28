@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Added
+### Removed
+
+- Remove features `blake3`, `poseidon` and `zk` [#58]
+- Remove `Aggregate` implementations for blake3 and poseidon [#58]
+
+### Added
 
 - Add more comprehensive benchmarks for `blake3` tree [#54]
 - Add `to_var_bytes` and `from_slice` to `Opening` [#55]
 
-## Changed
+### Changed
 
 - Update to poseidon hash optimized for merkle openings [#62]
 
@@ -80,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#62]: https://github.com/dusk-network/merkle/issues/62
+[#58]: https://github.com/dusk-network/merkle/issues/58
 [#55]: https://github.com/dusk-network/merkle/issues/55
 [#54]: https://github.com/dusk-network/merkle/issues/54
 [#49]: https://github.com/dusk-network/merkle/issues/49

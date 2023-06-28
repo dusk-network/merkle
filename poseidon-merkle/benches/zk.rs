@@ -8,8 +8,8 @@
 
 use criterion::{criterion_group, criterion_main, Criterion};
 
-use dusk_merkle::poseidon::{Item, Opening, Tree};
 use dusk_plonk::prelude::*;
+use poseidon_merkle::{zk::opening_gadget, Item, Opening, Tree};
 
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
@@ -64,7 +64,7 @@ impl Circuit for OpeningCircuit {
     {
         // append the leaf and opening gadget to the circuit
         let leaf = composer.append_witness(self.leaf.hash);
-        let computed_root = self.opening.gadget(composer, leaf);
+        let computed_root = opening_gadget(composer, &self.opening, leaf);
 
         // append the public root as public input to the circuit
         // and ensure it is equal to the computed root

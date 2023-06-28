@@ -4,20 +4,24 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+#![doc = include_str!("../README.md")]
+#![no_std]
+#![deny(clippy::pedantic)]
+
 #[cfg(feature = "zk")]
-mod zk;
+pub mod zk;
 
 use dusk_bls12_381::BlsScalar;
+use dusk_merkle::Aggregate;
 use dusk_poseidon::sponge::merkle::hash as poseidon_merkle_hash;
 
-use crate::Aggregate;
-
 /// An alias for a tree containing `Item<T>`.
-pub type Tree<T, const H: usize, const A: usize> = crate::Tree<Item<T>, H, A>;
+pub type Tree<T, const H: usize, const A: usize> =
+    dusk_merkle::Tree<Item<T>, H, A>;
 
 /// An alias for an opening of a tree containing `Item<T>`.
 pub type Opening<T, const H: usize, const A: usize> =
-    crate::Opening<Item<T>, H, A>;
+    dusk_merkle::Opening<Item<T>, H, A>;
 
 /// A type that wraps a piece of data `T` together with a poseidon hash - i.e. a
 /// [`BlsScalar`].
@@ -29,7 +33,7 @@ pub type Opening<T, const H: usize, const A: usize> =
 /// # Example
 /// ```rust
 /// use dusk_bls12_381::BlsScalar;
-/// use dusk_merkle::poseidon::{Item, Tree as PoseidonTree};
+/// use poseidon_merkle::{Item, Tree as PoseidonTree};
 /// use dusk_poseidon::sponge;
 /// use dusk_merkle::Aggregate;
 ///
@@ -100,7 +104,8 @@ where
             level_data[i] = &item.data;
         });
 
-        // create new aggregated item
+        // create new aggregated item with the hash being the poseidon hash of
+        // the previous level
         Item {
             hash: poseidon_merkle_hash(&level_hashes),
             data: T::aggregate(level_data),

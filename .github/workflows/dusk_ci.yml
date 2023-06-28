@@ -18,8 +18,14 @@ jobs:
     name: Dusk Analyzer
     uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
 
-  tests_std:
-    name: tests std
+  tests_dusk_merkle:
+    name: tests dusk-merkle
     uses: dusk-network/.github/.github/workflows/run-tests.yml@main
     with:
-      test_flags: --features=blake3,rkyv-impl,size_32,poseidon,zk
+      test_flags: -p dusk-merkle --features=rkyv-impl,size_32
+
+  tests_poseidon_merkle:
+    name: tests poseidon-merkle
+    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
+    with:
+      test_flags: -p poseidon-merkle --features=zk,rkyv-impl,size_32
