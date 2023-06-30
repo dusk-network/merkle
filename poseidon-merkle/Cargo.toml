@@ -36,7 +36,8 @@ rkyv-impl = [
     "rkyv/alloc",
     "rkyv",
     "bytecheck",
-    "dusk-bls12_381/rkyv-impl"
+    "dusk-bls12_381/rkyv-impl",
+    "dusk-merkle/rkyv-impl"
 ]
 
 [[bench]]
