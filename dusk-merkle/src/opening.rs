@@ -111,18 +111,18 @@ where
         bytes.extend(&self.root.to_bytes());
 
         // serialize branch
-        for level in self.branch.iter() {
-            for item in level.iter() {
+        for level in &self.branch {
+            for item in level {
                 bytes.extend(&item.to_bytes());
             }
         }
 
         // serialize positions
-        for pos in self.positions.iter() {
+        for pos in self.positions {
             // the positions will be in the range [0..A[, so casting to u32
             // is never going to be a problem
             #[allow(clippy::cast_possible_truncation)]
-            bytes.extend(&(*pos as u32).to_bytes());
+            bytes.extend(&(pos as u32).to_bytes());
         }
 
         bytes
@@ -160,15 +160,15 @@ where
         // deserialize branch
         let mut branch: [[T; A]; H] =
             init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
-        for level in branch.iter_mut() {
-            for item in level.iter_mut() {
+        for level in &mut branch {
+            for item in &mut *level {
                 *item = T::from_reader(&mut bytes)?;
             }
         }
 
         // deserialize positions
         let mut positions = [0usize; H];
-        for pos in positions.iter_mut() {
+        for pos in &mut positions {
             *pos = u32::from_reader(&mut bytes)? as usize;
         }
 
