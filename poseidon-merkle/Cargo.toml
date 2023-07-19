@@ -1,7 +1,7 @@
 [package]
 name = "poseidon-merkle"
 description = "Crate implementing Dusk Network's Merkle tree"
-version = "0.2.1-rc.0"
+version = "0.2.1"
 
 categories = ["data-structures", "no-std"]
 keywords = ["tree", "merkle", "poseidon", "data", "structure"]
