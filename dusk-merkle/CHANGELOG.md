@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Remove unused `dusk-bls12_381` dependency
+
+### Added
+
+- Add `ff` dev-dependency
+
 ## [0.5.0] - 2023-06-28
 
 ### Removed

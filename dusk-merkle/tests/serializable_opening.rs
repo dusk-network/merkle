@@ -10,6 +10,7 @@ use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 use dusk_merkle::{Aggregate, Opening, Tree};
 
+use ff::Field;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
@@ -38,7 +39,7 @@ impl Aggregate<A> for Item {
 
     fn aggregate(items: [&Self; A]) -> Self {
         let mut bh_range = None;
-        let rng = &mut StdRng::seed_from_u64(0xbeef);
+        let mut rng = StdRng::seed_from_u64(0xbeef);
 
         for item in items {
             bh_range = match (bh_range, item.bh_range.as_ref()) {
@@ -54,7 +55,7 @@ impl Aggregate<A> for Item {
         }
 
         Self {
-            hash: BlsScalar::random(rng),
+            hash: BlsScalar::random(&mut rng),
             bh_range,
         }
     }
@@ -126,7 +127,7 @@ type MerkleTree = Tree<Item, H, A>;
 #[test]
 fn serialize_deserialize() {
     let tree = &mut MerkleTree::new();
-    let rng = &mut StdRng::seed_from_u64(0xbeef);
+    let mut rng = StdRng::seed_from_u64(0xbeef);
 
     const LEAVES: usize = 1000000;
 
@@ -139,7 +140,7 @@ fn serialize_deserialize() {
             end: block_height,
         });
         let leaf = Item {
-            hash: BlsScalar::random(rng),
+            hash: BlsScalar::random(&mut rng),
             bh_range,
         };
         let pos = rng.next_u64() % tree.capacity();
