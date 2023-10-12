@@ -18,12 +18,12 @@ license = "MPL-2.0"
 dusk-bytes = "0.1"
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
-dusk-bls12_381 = { version = "0.11", optional = true, default-features = false }
 
 [dev-dependencies]
 blake3 = "1"
 rand = "0.8"
-dusk-bls12_381 = "0.11"
+dusk-bls12_381 = "0.12"
+ff = { version = "0.13", default-features = false }
 criterion = "0.3"
 
 [features]
@@ -35,7 +35,6 @@ rkyv-impl = [
     "rkyv/alloc",
     "rkyv",
     "bytecheck",
-    "dusk-bls12_381/rkyv-impl"
 ]
 
 [[bench]]
