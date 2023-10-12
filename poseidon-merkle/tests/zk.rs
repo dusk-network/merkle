@@ -13,6 +13,8 @@ use dusk_poseidon::sponge::hash as poseidon_hash;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
+use ff::Field;
+
 // set max circuit size to 2^15 gates
 const CAPACITY: usize = 15;
 
@@ -79,8 +81,8 @@ impl Circuit for OpeningCircuit {
 #[test]
 fn opening() {
     let label = b"merkle opening";
-    let rng = &mut StdRng::seed_from_u64(0xdea1);
-    let pp = PublicParameters::setup(1 << CAPACITY, rng).unwrap();
+    let mut rng = StdRng::seed_from_u64(0xdea1);
+    let pp = PublicParameters::setup(1 << CAPACITY, &mut rng).unwrap();
 
     let (prover, verifier) = Compiler::compile::<OpeningCircuit>(&pp, label)
         .expect("Circuit should compile successfully");
@@ -89,7 +91,7 @@ fn opening() {
     let mut leaf = PoseidonItem::new(BlsScalar::zero(), ());
     let mut position = 0;
     for _ in 0..100 {
-        let hash = poseidon_hash(&[BlsScalar::random(rng)]);
+        let hash = poseidon_hash(&[BlsScalar::random(&mut rng)]);
         position = rng.next_u64() % tree.capacity();
         leaf = PoseidonItem::new(hash, ());
         tree.insert(position as u64, leaf);
@@ -100,7 +102,7 @@ fn opening() {
     let circuit = OpeningCircuit::new(opening, leaf);
 
     let (proof, public_inputs) = prover
-        .prove(rng, &circuit)
+        .prove(&mut rng, &circuit)
         .expect("Proof generation should succeed");
 
     verifier

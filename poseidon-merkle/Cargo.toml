@@ -16,15 +16,16 @@ license = "MPL-2.0"
 
 [dependencies]
 dusk-merkle = "0.5"
-dusk-poseidon = { version = "0.30", default-features = false, features = ["merkle"] }
-dusk-bls12_381 = { version = "0.11", default-features = false }
-dusk-plonk = { version = "0.14", optional = true, default-features = false }
+dusk-poseidon = { version = "0.31", default-features = false, features = ["merkle"] }
+dusk-bls12_381 = { version = "0.12", default-features = false }
+dusk-plonk = { version = "0.16", optional = true, default-features = false }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 
 [dev-dependencies]
 rand = "0.8"
 criterion = "0.3"
+ff = { version = "0.13", default-features = false }
 
 [features]
 zk = ["dusk-plonk/alloc", "dusk-poseidon/alloc"]
