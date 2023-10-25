@@ -323,4 +323,27 @@ mod tests {
         assert!(smallest_subtree.is_none());
         assert_eq!(height, 0);
     }
+
+    #[cfg(feature = "rkyv-impl")]
+    mod rkyv_impl {
+        use super::SumTree;
+
+        #[test]
+        fn serde() {
+            let mut tree = SumTree::new();
+
+            tree.insert(5, 42);
+            tree.insert(6, 42);
+            tree.insert(5, 42);
+
+            let tree_bytes = rkyv::to_bytes::<_, 128>(&tree)
+                .expect("Archiving a tree should succeed")
+                .to_vec();
+
+            let archived_tree = rkyv::from_bytes::<SumTree>(&tree_bytes)
+                .expect("Deserializing a tree should succeed");
+
+            assert_eq!(tree, archived_tree);
+        }
+    }
 }

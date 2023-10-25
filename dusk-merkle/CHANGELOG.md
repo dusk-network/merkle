@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `rkyv` serialization for `Tree` [#73]
+
 ## [0.5.1] - 2023-10-12
 
 ### Removed
@@ -96,6 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#73]: https://github.com/dusk-network/merkle/issues/73
 [#62]: https://github.com/dusk-network/merkle/issues/62
 [#58]: https://github.com/dusk-network/merkle/issues/58
 [#55]: https://github.com/dusk-network/merkle/issues/55
