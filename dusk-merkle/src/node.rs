@@ -10,22 +10,9 @@ use core::cell::{Ref, RefCell};
 use crate::{capacity, init_array, Aggregate};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize),
-    archive(bound(serialize = "__S: rkyv::ser::Serializer")),
-    archive_attr(
-        derive(bytecheck::CheckBytes),
-        doc(hidden),
-        check_bytes(
-            bound = "__C: rkyv::validation::ArchiveContext, <__C as rkyv::Fallible>::Error: bytecheck::Error"
-        )
-    )
-)]
 #[doc(hidden)]
 pub struct Node<T, const H: usize, const A: usize> {
     item: RefCell<Option<T>>,
-    #[cfg_attr(feature = "rkyv-impl", omit_bounds, archive_attr(omit_bounds))]
     pub(crate) children: [Option<Box<Node<T, H, A>>>; A],
 }
 
@@ -145,5 +132,99 @@ where
         }
 
         (removed_item, has_children)
+    }
+}
+
+#[cfg(feature = "rkyv-impl")]
+mod rkyv_impl {
+    use super::Node;
+
+    use alloc::boxed::Box;
+    use core::cell::RefCell;
+
+    use bytecheck::CheckBytes;
+    use rkyv::{
+        out_field, ser::Serializer, Archive, Archived, Deserialize, Fallible,
+        Resolver, Serialize,
+    };
+
+    #[derive(CheckBytes)]
+    #[check_bytes(
+        bound = "__C: rkyv::validation::ArchiveContext, <__C as rkyv::Fallible>::Error: bytecheck::Error"
+    )]
+    pub struct ArchivedNode<T: Archive, const H: usize, const A: usize> {
+        item: Archived<Option<T>>,
+        #[omit_bounds]
+        children: Archived<[Option<Box<Node<T, H, A>>>; A]>,
+    }
+
+    pub struct NodeResolver<T: Archive, const H: usize, const A: usize> {
+        item: Resolver<Option<T>>,
+        children: Resolver<[Option<Box<Node<T, H, A>>>; A]>,
+    }
+
+    impl<T, const H: usize, const A: usize> Archive for Node<T, H, A>
+    where
+        T: Archive,
+    {
+        type Archived = ArchivedNode<T, H, A>;
+        type Resolver = NodeResolver<T, H, A>;
+
+        unsafe fn resolve(
+            &self,
+            pos: usize,
+            resolver: Self::Resolver,
+            out: *mut Self::Archived,
+        ) {
+            let (item_pos, item) = out_field!(out.item);
+            let (children_pos, children) = out_field!(out.children);
+
+            self.item
+                .borrow()
+                .resolve(pos + item_pos, resolver.item, item);
+            self.children.resolve(
+                pos + children_pos,
+                resolver.children,
+                children,
+            );
+        }
+    }
+
+    impl<S, T, const H: usize, const A: usize> Serialize<S> for Node<T, H, A>
+    where
+        S: Serializer + ?Sized,
+        T: Archive + Serialize<S>,
+    {
+        fn serialize(
+            &self,
+            serializer: &mut S,
+        ) -> Result<Self::Resolver, S::Error> {
+            let item = self.item.borrow();
+
+            let item = item.serialize(serializer)?;
+            let children = self.children.serialize(serializer)?;
+
+            Ok(Self::Resolver { item, children })
+        }
+    }
+
+    impl<D, T, const H: usize, const A: usize> Deserialize<Node<T, H, A>, D>
+        for ArchivedNode<T, H, A>
+    where
+        D: Fallible + ?Sized,
+        T: Archive,
+        Archived<T>: Deserialize<T, D>,
+    {
+        fn deserialize(
+            &self,
+            deserializer: &mut D,
+        ) -> Result<Node<T, H, A>, D::Error> {
+            let item = self.item.deserialize(deserializer)?;
+            let children = self.children.deserialize(deserializer)?;
+            Ok(Node {
+                item: RefCell::new(item),
+                children,
+            })
+        }
     }
 }
