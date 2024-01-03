@@ -16,9 +16,9 @@ license = "MPL-2.0"
 
 [dependencies]
 dusk-merkle = "0.5"
-dusk-poseidon = { version = "0.32", default-features = false, features = ["merkle"] }
+dusk-poseidon = { version = "0.33", default-features = false, features = ["merkle"] }
 dusk-bls12_381 = { version = "0.13", default-features = false }
-dusk-plonk = { version = "0.18", optional = true, default-features = false }
+dusk-plonk = { version = "0.19", optional = true, default-features = false }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 

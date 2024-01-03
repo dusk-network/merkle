@@ -12,19 +12,18 @@ use dusk_poseidon::sponge::merkle::gadget as poseidon_merkle_gadget;
 
 /// Builds the gadget for the poseidon opening and returns the computed
 /// root.
-pub fn opening_gadget<T, C, const H: usize, const A: usize>(
-    composer: &mut C,
+pub fn opening_gadget<T, const H: usize, const A: usize>(
+    composer: &mut Composer,
     opening: &Opening<T, H, A>,
     leaf: Witness,
 ) -> Witness
 where
     T: Clone + Aggregate<A>,
-    C: Composer,
 {
     // append the siblings and position to the circuit
-    let mut level_witnesses = [[C::ZERO; A]; H];
+    let mut level_witnesses = [[Composer::ZERO; A]; H];
     // if i == position: pos_bits[i] = 1 else: pos_bits[i] = 0
-    let mut pos_bits = [[C::ZERO; A]; H];
+    let mut pos_bits = [[Composer::ZERO; A]; H];
     for h in (0..H).rev() {
         let level = &opening.branch()[h];
         for (i, item) in level.iter().enumerate() {

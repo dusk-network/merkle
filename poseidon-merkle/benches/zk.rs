@@ -58,10 +58,7 @@ impl OpeningCircuit {
 }
 
 impl Circuit for OpeningCircuit {
-    fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
-    where
-        C: Composer,
-    {
+    fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
         // append the leaf and opening gadget to the circuit
         let leaf = composer.append_witness(self.leaf.hash);
         let computed_root = opening_gadget(composer, &self.opening, leaf);
