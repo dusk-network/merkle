@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2024-01-03
+
 ### Changed
 
 - Update `dusk-plonk` to 0.19
@@ -50,7 +52,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#58]: https://github.com/dusk-network/merkle/issues/58
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.4.0...HEAD
+[Unreleased]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.5.0...HEAD
+[0.5.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.4.0...poseidon-merkle_v0.5.0
 [0.4.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.3.0...poseidon-merkle_v0.4.0
 [0.3.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.2.1...poseidon-merkle_v0.3.0
 [0.2.1]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.2.0...poseidon-merkle_v0.2.1
