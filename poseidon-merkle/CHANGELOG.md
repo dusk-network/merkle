@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update `dusk-poseidon` to 0.39 [#85]
+- Fix `ARITY` in the poseidon-tree to `4` [#85]
+
 ## [0.5.0] - 2024-01-03
 
 ### Changed
@@ -49,6 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add poseidon-merkle crate [#58]
 
 <!-- ISSUES -->
+[#85]: https://github.com/dusk-network/merkle/issues/85
 [#58]: https://github.com/dusk-network/merkle/issues/58
 
 <!-- VERSIONS -->

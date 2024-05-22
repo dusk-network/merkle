@@ -4,26 +4,26 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::Opening;
+use crate::{Opening, ARITY};
 
 use dusk_merkle::Aggregate;
 use dusk_plonk::prelude::{BlsScalar, Composer, Constraint, Witness};
-use dusk_poseidon::sponge::merkle::gadget as poseidon_merkle_gadget;
+use dusk_poseidon::{Domain, HashGadget};
 
 /// Builds the gadget for the poseidon opening and returns the computed
 /// root.
-pub fn opening_gadget<T, const H: usize, const A: usize>(
+pub fn opening_gadget<T, const H: usize>(
     composer: &mut Composer,
-    opening: &Opening<T, H, A>,
+    opening: &Opening<T, H>,
     leaf: Witness,
 ) -> Witness
 where
-    T: Clone + Aggregate<A>,
+    T: Clone + Aggregate<ARITY>,
 {
     // append the siblings and position to the circuit
-    let mut level_witnesses = [[Composer::ZERO; A]; H];
+    let mut level_witnesses = [[Composer::ZERO; ARITY]; H];
     // if i == position: pos_bits[i] = 1 else: pos_bits[i] = 0
-    let mut pos_bits = [[Composer::ZERO; A]; H];
+    let mut pos_bits = [[Composer::ZERO; ARITY]; H];
     for h in (0..H).rev() {
         let level = &opening.branch()[h];
         for (i, item) in level.iter().enumerate() {
@@ -57,7 +57,7 @@ where
     // keep track of the computed hash along our path with needle
     let mut needle = leaf;
     for h in (0..H).rev() {
-        for i in 0..A {
+        for i in 0..ARITY {
             // assert that:
             // pos_bits[h][i] * level_hash[i] = pos_bits[h][i] * needle
             let constraint = Constraint::new()
@@ -73,7 +73,9 @@ where
         }
 
         // hash the current level
-        needle = poseidon_merkle_gadget(composer, &level_witnesses[h]);
+        needle =
+            HashGadget::digest(composer, Domain::Merkle4, &level_witnesses[h])
+                [0];
     }
 
     // return the computed root as a witness in the circuit

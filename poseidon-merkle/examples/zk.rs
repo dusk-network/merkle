@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use dusk_plonk::prelude::*;
-use dusk_poseidon::sponge::hash as poseidon_hash;
+use dusk_poseidon::{Domain, Hash};
 use ff::Field;
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
@@ -18,14 +18,13 @@ use poseidon_merkle::{
 // set max circuit size to 2^16 gates
 const CAPACITY: usize = 16;
 
-// set height and arity of the poseidon merkle tree
+// set height of the poseidon merkle tree
 const HEIGHT: usize = 17;
-const ARITY: usize = 4;
 
 // Create a circuit for the opening
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
 struct OpeningCircuit {
-    opening: PoseidonOpening<(), HEIGHT, ARITY>,
+    opening: PoseidonOpening<(), HEIGHT>,
     leaf: PoseidonItem<()>,
 }
 
@@ -48,7 +47,7 @@ impl Default for OpeningCircuit {
 impl OpeningCircuit {
     /// Create a new OpeningCircuit
     pub fn new(
-        opening: PoseidonOpening<(), HEIGHT, ARITY>,
+        opening: PoseidonOpening<(), HEIGHT>,
         leaf: PoseidonItem<()>,
     ) -> Self {
         Self { opening, leaf }
@@ -85,7 +84,8 @@ fn main() {
     let mut leaf = PoseidonItem::<()>::new(BlsScalar::zero(), ());
     let mut position = 0;
     for _ in 0..100 {
-        let hash = poseidon_hash(&[BlsScalar::random(&mut rng)]);
+        let hash =
+            Hash::digest(Domain::Other, &[BlsScalar::random(&mut rng)])[0];
         position = rng.next_u64() % u8::MAX as u64;
         leaf = PoseidonItem::<()>::new(hash, ());
         tree.insert(position as u64, leaf);
