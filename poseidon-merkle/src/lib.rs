@@ -12,6 +12,7 @@
 pub mod zk;
 
 use dusk_bls12_381::BlsScalar;
+use dusk_bytes::Serializable;
 use dusk_merkle::Aggregate;
 use dusk_poseidon::{Domain, Hash};
 
@@ -150,5 +151,23 @@ where
             hash: Hash::digest(Domain::Merkle4, &level_hashes)[0],
             data: T::aggregate(level_data),
         }
+    }
+}
+
+impl Serializable<32> for Item<()> {
+    type Error = <BlsScalar as Serializable<32>>::Error;
+
+    fn from_bytes(buf: &[u8; 32]) -> Result<Self, Self::Error>
+    where
+        Self: Sized,
+    {
+        Ok(Item {
+            hash: <BlsScalar as Serializable<32>>::from_bytes(buf)?,
+            data: (),
+        })
+    }
+
+    fn to_bytes(&self) -> [u8; 32] {
+        self.hash.to_bytes()
     }
 }
