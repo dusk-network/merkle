@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update `dusk-plonk` to v0.20
+- Update `dusk-poseidon` to v0.40
 
 ## [0.6.1] - 2024-08-28
 
