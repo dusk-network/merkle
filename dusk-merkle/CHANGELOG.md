@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2024-09-09
+
 ## Added
 
 - Add `Default` implementation for `Tree`
@@ -126,7 +128,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#13]: https://github.com/dusk-network/merkle/issues/13
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/dusk-network/merkle/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/dusk-network/merkle/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/dusk-network/merkle/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/dusk-network/merkle/compare/v0.4.0...v0.5.0
