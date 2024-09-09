@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Added
 
+- Add `Default` implementation for `Tree`
 - Add bounds check on `Tree::insert`, improving panic message [#91]
 
 ## [0.5.2] - 2023-10-27
