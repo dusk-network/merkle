@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Added
+
+- Add bounds check on `Tree::insert`, improving panic message [#91]
+
 ## [0.5.2] - 2023-10-27
 
 ### Fixed
@@ -102,6 +106,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#91]: https://github.com/dusk-network/merkle/issues/91
 [#73]: https://github.com/dusk-network/merkle/issues/73
 [#62]: https://github.com/dusk-network/merkle/issues/62
 [#58]: https://github.com/dusk-network/merkle/issues/58

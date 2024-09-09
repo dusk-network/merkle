@@ -37,10 +37,18 @@ where
     /// Insert an `item` at the given `position` in the tree.
     ///
     /// # Panics
-    /// If `position >= capacity`.
-    pub fn insert(&mut self, position: u64, item: impl Into<T>) {
-        self.root.insert(0, position, item);
-        self.positions.insert(position);
+    /// If `index >= capacity`.
+    pub fn insert(&mut self, index: u64, item: impl Into<T>) {
+        let capacity = self.capacity();
+
+        assert!(
+            index < capacity,
+            "index out of bounds: \
+             the capacity is {capacity} but the index is {index}"
+        );
+
+        self.root.insert(0, index, item);
+        self.positions.insert(index);
     }
 
     /// Remove and return the item at the given `position` in the tree if it
@@ -200,7 +208,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(
+        expected = "index out of bounds: the capacity is 8 but the index is 8"
+    )]
     fn tree_insertion_out_of_bounds() {
         let mut tree = SumTree::new();
         tree.insert(tree.capacity(), 42);
