@@ -21,6 +21,15 @@ pub struct Tree<T, const H: usize, const A: usize> {
     positions: BTreeSet<u64>,
 }
 
+impl<T, const H: usize, const A: usize> Default for Tree<T, H, A>
+where
+    T: Aggregate<A>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const H: usize, const A: usize> Tree<T, H, A>
 where
     T: Aggregate<A>,
