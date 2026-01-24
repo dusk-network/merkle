@@ -96,7 +96,9 @@ where
                     let child = child.as_ref();
                     if (self.walker)(&*child.item()) {
                         self.path[h] = Some(child);
-                        if let Some(item) = self.advance(child, h + 1) { return Some(item) }
+                        if let Some(item) = self.advance(child, h + 1) {
+                            return Some(item);
+                        }
                     }
                 }
             }
