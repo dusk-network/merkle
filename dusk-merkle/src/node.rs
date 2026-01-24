@@ -32,7 +32,7 @@ where
         }
     }
 
-    pub(crate) fn item(&self) -> Ref<T> {
+    pub(crate) fn item(&self) -> Ref<'_, T> {
         // a leaf will always have a computed item, so we never go into it
         if self.item.borrow().is_none() {
             // compute our item, recursing into the children.
