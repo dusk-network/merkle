@@ -91,7 +91,7 @@ where
     /// the output of the walker function. The function should return `true` or
     /// `false`, indicating whether the iterator should continue along the
     /// tree's path.
-    pub fn walk<W>(&self, walker: W) -> Walk<T, W, H, A>
+    pub fn walk<W>(&self, walker: W) -> Walk<'_, T, W, H, A>
     where
         W: Fn(&T) -> bool,
     {
@@ -99,12 +99,12 @@ where
     }
 
     /// Get the root of the merkle tree.
-    pub fn root(&self) -> Ref<T> {
+    pub fn root(&self) -> Ref<'_, T> {
         self.root.item()
     }
 
     /// Returns the root of the smallest sub-tree that holds all the leaves.
-    pub fn smallest_subtree(&self) -> (Ref<T>, usize) {
+    pub fn smallest_subtree(&self) -> (Ref<'_, T>, usize) {
         let mut smallest_node = &self.root;
         let mut height = H;
         loop {

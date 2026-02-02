@@ -90,8 +90,6 @@ For the opening proof creation in zero-knowledge:
 cargo bench -p poseidon-merkle --features zk
 ```
 
-This requires a nightly toolchain.
-
 ## Implementations
 
 A merkle tree using the poseidon hash function for aggregation and plonk to
