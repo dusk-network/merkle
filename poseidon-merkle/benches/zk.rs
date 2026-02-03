@@ -6,10 +6,10 @@
 
 // to be able to use this module, the "poseidon" feature needs to be in scope
 
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 
 use dusk_plonk::prelude::*;
-use poseidon_merkle::{zk::opening_gadget, Item, Opening, Tree};
+use poseidon_merkle::{Item, Opening, Tree, zk::opening_gadget};
 
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
