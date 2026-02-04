@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Opening, ARITY};
+use crate::{ARITY, Opening};
 
 use dusk_merkle::Aggregate;
 use dusk_plonk::prelude::{BlsScalar, Composer, Constraint, Witness};
