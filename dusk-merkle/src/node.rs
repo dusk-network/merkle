@@ -7,7 +7,7 @@
 use alloc::boxed::Box;
 use core::cell::{Ref, RefCell};
 
-use crate::{capacity, init_array, Aggregate};
+use crate::{Aggregate, capacity, init_array};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[doc(hidden)]
@@ -135,7 +135,11 @@ where
     }
 }
 
+// Allow `unsafe_op_in_unsafe_fn` because the `CheckBytes` derive macro from
+// bytecheck 0.6 generates unsafe operations without `unsafe {}` blocks, which
+// is not edition-2024-compliant.
 #[cfg(feature = "rkyv-impl")]
+#[allow(unsafe_op_in_unsafe_fn)]
 mod rkyv_impl {
     use super::Node;
 
@@ -144,8 +148,8 @@ mod rkyv_impl {
 
     use bytecheck::CheckBytes;
     use rkyv::{
-        out_field, ser::Serializer, Archive, Archived, Deserialize, Fallible,
-        Resolver, Serialize,
+        Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
+        out_field, ser::Serializer,
     };
 
     #[derive(CheckBytes)]
@@ -179,14 +183,20 @@ mod rkyv_impl {
             let (item_pos, item) = out_field!(out.item);
             let (children_pos, children) = out_field!(out.children);
 
-            self.item
-                .borrow()
-                .resolve(pos + item_pos, resolver.item, item);
-            self.children.resolve(
-                pos + children_pos,
-                resolver.children,
-                children,
-            );
+            // SAFETY: `out` points to a valid `ArchivedNode` allocation, and
+            // the field pointers and offsets produced by `out_field!` are
+            // correct. The caller guarantees that `pos` matches the position
+            // of `out` in the output buffer.
+            unsafe {
+                self.item
+                    .borrow()
+                    .resolve(pos + item_pos, resolver.item, item);
+                self.children.resolve(
+                    pos + children_pos,
+                    resolver.children,
+                    children,
+                );
+            }
         }
     }
 

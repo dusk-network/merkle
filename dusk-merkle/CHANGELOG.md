@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Update `dusk-bls12_381` dev dependency to v0.14
+- Update to rust stable version 1.85, edition 2024
+
+### Fixed
+
+- Fix `unsafe_op_in_unsafe_fn` warnings for edition 2024
 
 ## [0.5.3] - 2024-09-09
 

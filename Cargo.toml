@@ -4,3 +4,6 @@ members = [
     "poseidon-merkle"
 ]
 resolver = "2"
+
+[workspace.dependencies]
+dusk-merkle = { version = "0.6.0-rc.0", path = "dusk-merkle" }

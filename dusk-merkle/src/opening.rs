@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{init_array, Aggregate, Node, Tree};
+use crate::{Aggregate, Node, Tree, init_array};
 
 use alloc::vec::Vec;
 
@@ -279,7 +279,7 @@ mod tests {
             );
 
             assert!(
-                !opening.verify(LETTERS[((pos + 1)%cap) as usize]),
+                !opening.verify(LETTERS[((pos + 1) % cap) as usize]),
                 "The opening should *only* be for the item that was inserted at the given position"
             );
         }

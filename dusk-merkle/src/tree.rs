@@ -7,7 +7,7 @@
 use alloc::collections::BTreeSet;
 use core::cell::Ref;
 
-use crate::{capacity, Aggregate, Node, Opening, Walk};
+use crate::{Aggregate, Node, Opening, Walk, capacity};
 
 /// A sparse Merkle tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
