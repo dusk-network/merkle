@@ -7,7 +7,7 @@
 use alloc::boxed::Box;
 use core::cell::{Ref, RefCell};
 
-use crate::{capacity, init_array, Aggregate};
+use crate::{Aggregate, capacity, init_array};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[doc(hidden)]
@@ -148,8 +148,8 @@ mod rkyv_impl {
 
     use bytecheck::CheckBytes;
     use rkyv::{
-        out_field, ser::Serializer, Archive, Archived, Deserialize, Fallible,
-        Resolver, Serialize,
+        Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
+        out_field, ser::Serializer,
     };
 
     #[derive(CheckBytes)]

@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
