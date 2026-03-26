@@ -9,7 +9,6 @@ use std::time::Instant;
 
 use blake3::{Hash as Blake3Hash, Hasher};
 use dusk_merkle::{Aggregate, Tree as MerkleTree};
-
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 

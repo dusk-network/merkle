@@ -141,16 +141,17 @@ where
 #[cfg(feature = "rkyv-impl")]
 #[allow(unsafe_op_in_unsafe_fn)]
 mod rkyv_impl {
-    use super::Node;
-
     use alloc::boxed::Box;
     use core::cell::RefCell;
 
     use bytecheck::CheckBytes;
+    use rkyv::ser::Serializer;
     use rkyv::{
         Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
-        out_field, ser::Serializer,
+        out_field,
     };
+
+    use super::Node;
 
     #[derive(CheckBytes)]
     #[check_bytes(

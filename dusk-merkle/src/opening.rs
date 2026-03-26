@@ -4,8 +4,6 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{Aggregate, Node, Tree, init_array};
-
 use alloc::vec::Vec;
 
 #[cfg(feature = "rkyv-impl")]
@@ -13,6 +11,8 @@ use bytecheck::CheckBytes;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
+
+use crate::{Aggregate, Node, Tree, init_array};
 
 /// An opening for a given position in a merkle tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
