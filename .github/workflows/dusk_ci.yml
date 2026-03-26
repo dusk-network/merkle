@@ -18,14 +18,32 @@ jobs:
     name: Dusk Analyzer
     uses: dusk-network/.github/.github/workflows/dusk-analysis.yml@main
 
-  tests_dusk_merkle:
-    name: tests dusk-merkle
-    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
-    with:
-      test_flags: -p dusk-merkle --features=rkyv-impl,size_32
+  test:
+    name: Tests
+    runs-on: core
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Rust tools to PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: dsherret/rust-toolchain-file@v1
+      - name: Enable sccache
+        run: |
+          if command -v sccache >/dev/null; then
+            echo "RUSTC_WRAPPER=$(command -v sccache)" >> "$GITHUB_ENV"
+          fi
+      - run: make test
 
-  tests_poseidon_merkle:
-    name: tests poseidon-merkle
-    uses: dusk-network/.github/.github/workflows/run-tests.yml@main
-    with:
-      test_flags: -p poseidon-merkle --features=zk,rkyv-impl,size_32
+  no-std:
+    name: Bare-metal no_std
+    runs-on: core
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add Rust tools to PATH
+        run: echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      - uses: dsherret/rust-toolchain-file@v1
+      - name: Enable sccache
+        run: |
+          if command -v sccache >/dev/null; then
+            echo "RUSTC_WRAPPER=$(command -v sccache)" >> "$GITHUB_ENV"
+          fi
+      - run: make no-std
