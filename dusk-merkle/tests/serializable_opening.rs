@@ -157,3 +157,31 @@ fn serialize_deserialize() {
     assert!(deserialized.verify(leaf));
     assert_eq!(opening, deserialized);
 }
+
+#[test]
+fn out_of_range_position_rejected() {
+    let tree = &mut MerkleTree::new();
+    let mut rng = StdRng::seed_from_u64(0xbeef);
+
+    let leaf = Item {
+        hash: BlsScalar::random(&mut rng),
+        bh_range: Some(Range { start: 0, end: 0 }),
+    };
+    tree.insert(0, leaf);
+
+    let opening = tree.opening(0).unwrap();
+    let mut serialized = opening.to_var_bytes::<ITEM_SIZE>();
+
+    // The positions are stored as u32 values at the end of the serialized
+    // opening. Overwrite the first position with a value >= A to simulate
+    // a crafted opening with an out-of-range position.
+    let positions_offset = (1 + H * A) * ITEM_SIZE;
+    let bad_position = A as u32;
+    serialized[positions_offset..positions_offset + 4]
+        .copy_from_slice(&bad_position.to_le_bytes());
+
+    assert!(
+        Opening::<Item, H, A>::from_slice::<ITEM_SIZE>(&serialized).is_err(),
+        "Deserialization should reject a position >= A"
+    );
+}
