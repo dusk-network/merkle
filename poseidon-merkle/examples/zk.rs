@@ -7,13 +7,12 @@
 use dusk_plonk::prelude::*;
 use dusk_poseidon::{Domain, Hash};
 use ff::Field;
-use rand::rngs::StdRng;
-use rand::{RngCore, SeedableRng};
-
 use poseidon_merkle::zk::opening_gadget;
 use poseidon_merkle::{
     Item as PoseidonItem, Opening as PoseidonOpening, Tree as PoseidonTree,
 };
+use rand::rngs::StdRng;
+use rand::{RngCore, SeedableRng};
 
 // set max circuit size to 2^16 gates
 const CAPACITY: usize = 16;

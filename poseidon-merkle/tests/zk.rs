@@ -4,16 +4,13 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use poseidon_merkle::zk::opening_gadget;
-use poseidon_merkle::{Item, Opening, Tree};
-
 use dusk_plonk::prelude::*;
 use dusk_poseidon::{Domain, Hash};
-
+use ff::Field;
+use poseidon_merkle::zk::opening_gadget;
+use poseidon_merkle::{Item, Opening, Tree};
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
-
-use ff::Field;
 
 // set max circuit size to 2^15 gates
 const CAPACITY: usize = 15;

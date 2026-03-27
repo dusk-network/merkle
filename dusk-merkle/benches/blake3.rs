@@ -4,14 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
+use blake3::{Hash as Blake3Hash, Hasher};
 use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
-
+use dusk_merkle::{Aggregate, Tree};
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
-
-use blake3::{Hash as Blake3Hash, Hasher};
-
-use dusk_merkle::{Aggregate, Tree};
 
 const EMPTY_HASH: Item = Item([0; 32]);
 

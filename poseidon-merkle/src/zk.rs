@@ -4,11 +4,11 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-use crate::{ARITY, Opening};
-
 use dusk_merkle::Aggregate;
 use dusk_plonk::prelude::{BlsScalar, Composer, Constraint, Witness};
 use dusk_poseidon::{Domain, HashGadget};
+
+use crate::{ARITY, Opening};
 
 /// Builds the gadget for the poseidon opening and returns the computed
 /// root.
