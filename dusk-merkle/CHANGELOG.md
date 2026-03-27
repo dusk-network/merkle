@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject out-of-range position values during `Opening::from_slice` deserialization
 - Fix `unsafe_op_in_unsafe_fn` warnings for edition 2024
 
 ## [0.5.3] - 2024-09-09

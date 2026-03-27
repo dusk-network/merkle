@@ -169,7 +169,11 @@ where
         // deserialize positions
         let mut positions = [0usize; H];
         for pos in &mut positions {
-            *pos = u32::from_reader(&mut bytes)? as usize;
+            let p = u32::from_reader(&mut bytes)? as usize;
+            if p >= A {
+                return Err(BytesError::InvalidData);
+            }
+            *pos = p;
         }
 
         Ok(Self {
