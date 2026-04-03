@@ -11,5 +11,6 @@ no-std: ## Verify no_std compatibility on bare-metal target
 
 clippy: ## Run clippy
 	@cargo clippy -p poseidon-merkle --features=zk,rkyv-impl,size_32 -- -D warnings
+	@cargo clippy -p poseidon-merkle --no-default-features -- -D warnings
 
 .PHONY: help test no-std clippy

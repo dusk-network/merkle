@@ -14,8 +14,13 @@ clippy: ## Run clippy
 	@$(MAKE) -C ./dusk-merkle $@
 	@$(MAKE) -C ./poseidon-merkle $@
 
+cq: ## Run code quality checks (formatting + clippy)
+	@$(MAKE) fmt CHECK=1
+	@$(MAKE) clippy
+
 fmt: ## Format code (requires nightly)
-	@cargo +nightly fmt --all
+	@rustup component add --toolchain nightly rustfmt 2>/dev/null || true
+	@cargo +nightly fmt --all $(if $(CHECK),-- --check,)
 
 check: ## Run cargo check
 	@cargo check
@@ -26,4 +31,4 @@ doc: ## Generate documentation
 clean: ## Clean build artifacts
 	@cargo clean
 
-.PHONY: help test no-std clippy fmt check doc clean
+.PHONY: help test no-std clippy cq fmt check doc clean
