@@ -11,5 +11,6 @@ no-std: ## Verify no_std compatibility on bare-metal target
 
 clippy: ## Run clippy
 	@cargo clippy -p dusk-merkle --features=rkyv-impl,size_32 -- -D warnings
+	@cargo clippy -p dusk-merkle --no-default-features -- -D warnings
 
 .PHONY: help test no-std clippy
