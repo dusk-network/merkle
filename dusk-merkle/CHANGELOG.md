@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update `dusk-bls12_381` dev dependency to v0.14
+- Replace `dusk-bls12_381` dev dependency with `dusk-curves` v0.2 using the BLST backend
 - Update to rust stable version 1.85, edition 2024
 
 ### Fixed
