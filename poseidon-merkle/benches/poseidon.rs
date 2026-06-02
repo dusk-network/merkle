@@ -5,7 +5,7 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
-use dusk_bls12_381::BlsScalar;
+use dusk_curves::bls12_381::BlsScalar;
 use dusk_poseidon::{Domain, Hash};
 use poseidon_merkle::{Item, Tree};
 use rand::{RngCore, SeedableRng};
