@@ -63,11 +63,11 @@ where
     /// Remove and return the item at the given `position` in the tree if it
     /// exists.
     pub fn remove(&mut self, position: u64) -> Option<T> {
-        if !self.positions.contains(&position) {
+        if !self.has_recorded_position(position) {
             return None;
         }
 
-        let (item, _) = self.root.remove(0, position);
+        let (item, _) = self.root.remove(0, position)?;
         self.positions.remove(&position);
 
         Some(item)
@@ -78,10 +78,16 @@ where
     where
         T: Clone,
     {
-        if !self.positions.contains(&position) {
+        if !self.has_recorded_position(position) {
             return None;
         }
-        Some(Opening::new(self, position))
+        Opening::new(self, position)
+    }
+
+    // Capacity must be checked before private path traversal: child indices
+    // are derived through a potentially truncating `u64` to `usize` cast.
+    fn has_recorded_position(&self, position: u64) -> bool {
+        position < self.capacity() && self.positions.contains(&position)
     }
 
     /// Returns a [`Walk`] through the tree, proceeding according to the
@@ -223,6 +229,69 @@ mod tests {
     fn tree_insertion_out_of_bounds() {
         let mut tree = SumTree::new();
         tree.insert(tree.capacity(), 42);
+    }
+
+    #[test]
+    fn inconsistent_tree_path_returns_none() {
+        let mut tree = SumTree::new();
+        let position = 5;
+        tree.insert(position, 42);
+
+        let (child_index, _) = Node::<u8, H, A>::child_location(0, position);
+        tree.root.children[child_index] = None;
+
+        let len = tree.len();
+        let root = *tree.root();
+
+        assert!(tree.opening(position).is_none());
+        assert!(tree.remove(position).is_none());
+        assert!(tree.contains(position));
+        assert_eq!(tree.len(), len);
+        assert_eq!(*tree.root(), root);
+    }
+
+    #[test]
+    fn inconsistent_tree_path_below_root_returns_none() {
+        let mut tree = SumTree::new();
+        let position = 5;
+        tree.insert(position, 42);
+
+        let (child_index, child_position) =
+            Node::<u8, H, A>::child_location(0, position);
+        let child = tree.root.children[child_index]
+            .as_mut()
+            .expect("The inserted item must populate the root child");
+        let (child_index, _) =
+            Node::<u8, H, A>::child_location(1, child_position);
+        child.children[child_index] = None;
+
+        let len = tree.len();
+        let root = *tree.root();
+
+        assert!(tree.opening(position).is_none());
+        assert!(tree.remove(position).is_none());
+        assert!(tree.contains(position));
+        assert_eq!(tree.len(), len);
+        assert_eq!(*tree.root(), root);
+    }
+
+    #[test]
+    fn out_of_bounds_tree_position_returns_none() {
+        let mut tree = SumTree::new();
+        tree.insert(0, 42);
+
+        let position = 1 << 34;
+        tree.positions.insert(position);
+
+        let len = tree.len();
+        let root = *tree.root();
+
+        assert!(!tree.has_recorded_position(position));
+        assert!(tree.opening(position).is_none());
+        assert!(tree.remove(position).is_none());
+        assert!(tree.contains(position));
+        assert_eq!(tree.len(), len);
+        assert_eq!(*tree.root(), root);
     }
 
     // create test tree for shrunken root:

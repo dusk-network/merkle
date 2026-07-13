@@ -74,6 +74,12 @@ where
         (child_index, child_pos)
     }
 
+    // Cache presence is not a durable inserted-leaf invariant for malformed
+    // archives: `item()` can lazily populate an item-less leaf.
+    pub(crate) fn has_cached_item(&self) -> bool {
+        self.item.borrow().is_some()
+    }
+
     pub(crate) fn insert(
         &mut self,
         height: usize,
@@ -98,40 +104,31 @@ where
         Self::insert(child, height + 1, child_pos, item);
     }
 
-    /// Returns the removed element, together with if there are any siblings
-    /// left in the branch.
-    ///
-    /// # Panics
-    /// If an element does not exist at the given position.
-    pub(crate) fn remove(&mut self, height: usize, position: u64) -> (T, bool) {
+    /// Returns the removed element, together with whether there are any
+    /// siblings left in the branch. Returns `None` if the path is incomplete.
+    pub(crate) fn remove(
+        &mut self,
+        height: usize,
+        position: u64,
+    ) -> Option<(T, bool)> {
         if height == H {
-            // unwrapping is ok since leaves are always filled
-            let item = self.item.take().unwrap();
-            return (item, false);
+            // This is fallible for a cold item-less leaf, but a lazily warmed
+            // cache cannot establish whether an archived leaf was inserted.
+            return self.item.take().map(|item| (item, false));
         }
-        self.item.replace(None);
 
         let (child_index, child_pos) = Self::child_location(height, position);
-
-        let child = self.children[child_index]
-            .as_mut()
-            .expect("There should be a child at this position");
+        let child = self.children.get_mut(child_index)?.as_mut()?;
         let (removed_item, child_has_children) =
-            Self::remove(child, height + 1, child_pos);
+            Self::remove(child, height + 1, child_pos)?;
 
+        self.item.replace(None);
         if !child_has_children {
             self.children[child_index] = None;
         }
 
-        let mut has_children = false;
-        for child in &self.children {
-            if child.is_some() {
-                has_children = true;
-                break;
-            }
-        }
-
-        (removed_item, has_children)
+        let has_children = self.children.iter().any(Option::is_some);
+        Some((removed_item, has_children))
     }
 }
 
