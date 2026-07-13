@@ -73,9 +73,9 @@ where
             let level = &self.branch[h];
             let position = self.positions[h];
 
-            // if the computed item doesn't match the stored item at the given
-            // position, the opening is incorrect
-            if item != level[position] {
+            // Reject out-of-range positions and computed items that do not
+            // match the stored item at the given position.
+            if position >= A || item != level[position] {
                 return false;
             }
 
@@ -286,5 +286,20 @@ mod tests {
                 "The opening should *only* be for the item that was inserted at the given position"
             );
         }
+    }
+
+    #[test]
+    fn opening_verify_rejects_out_of_range_position() {
+        let mut tree = TestTree::new();
+        tree.insert(0, 'A');
+
+        let mut opening = tree
+            .opening(0)
+            .expect("There must be an opening for an existing item");
+        assert!(opening.verify('A'));
+
+        opening.positions[H - 1] = A;
+
+        assert!(!opening.verify('A'));
     }
 }
