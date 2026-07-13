@@ -22,8 +22,8 @@ features = ["bls-backend-blst"]
 dusk-bytes = "0.1"
 dusk-merkle.workspace = true
 dusk-curves = { version = "0.2", default-features = false }
-dusk-poseidon = { version = "0.43", default-features = false }
-dusk-plonk = { version = "0.23", optional = true, default-features = false }
+dusk-poseidon = { version = "0.42.0-rc.0", default-features = false }
+dusk-plonk = { version = "0.22.1", optional = true, default-features = false }
 rkyv = { version = "0.7", optional = true, default-features = false }
 bytecheck = { version = "0.6", optional = true, default-features = false }
 
@@ -36,13 +36,9 @@ ff = { version = "0.13", default-features = false }
 default = []
 bls-backend-blst = [
     "dusk-curves/bls-backend-blst",
-    "dusk-poseidon/bls-backend-blst",
-    "dusk-plonk?/bls-backend-blst",
 ]
 bls-backend-dusk = [
     "dusk-curves/bls-backend-dusk",
-    "dusk-poseidon/bls-backend-dusk",
-    "dusk-plonk?/bls-backend-dusk",
 ]
 zk = ["dep:dusk-plonk", "dusk-plonk/alloc", "dusk-poseidon/zk"]
 size_16 = ["rkyv/size_16"]
