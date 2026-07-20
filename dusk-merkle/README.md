@@ -82,20 +82,19 @@ cargo bench
 
 For the `poseidon` tree:
 ```shell
-cargo bench -p poseidon-merkle --features bls-backend-blst
+cargo bench -p poseidon-merkle
 ```
 
 For the opening proof creation in zero-knowledge:
 ```shell
-cargo bench -p poseidon-merkle --features bls-backend-blst,zk
+cargo bench -p poseidon-merkle --features zk
 ```
 
 ## Implementations
 
 A merkle tree using the poseidon hash function for aggregation and plonk to
 generate an opening proof in zero-knowledge can be found in the same workspace
-under 'poseidon-merkle'. Consumers of that crate must enable exactly one
-BLS12-381 backend feature, `bls-backend-dusk` or `bls-backend-blst`.
+under 'poseidon-merkle'.
 
 ## License
 

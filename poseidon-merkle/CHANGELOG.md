@@ -9,11 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Update `dusk-plonk` to v0.23
-- Update `dusk-poseidon` to v0.43
-- Replace `dusk-bls12_381` with `dusk-curves` v0.2
-- Add `bls-backend-dusk` and `bls-backend-blst` features for consumers to select the BLS12-381 backend
-- Use the BLST backend in local and CI verification commands
+- Update `dusk-plonk` to `v0.22.0-rc.0`
+- Update `dusk-poseidon` to `v0.42.0-rc.0`
 - Update `dusk-merkle` to `v0.6.0-rc.0`
 - Update to rust stable version 1.85, edition 2024
 

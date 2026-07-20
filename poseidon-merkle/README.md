@@ -27,30 +27,16 @@ The type `Item<T>` has the aggregation of the `hash` part with the poseidon hash
 pre-defined and additionally allows for a custom data type with custom
 aggregation.
 
-## Features
-
-This crate does not select a BLS12-381 backend by default. Consumers must enable
-exactly one backend feature:
-
-- `bls-backend-dusk`
-- `bls-backend-blst`
-
-The selected backend is forwarded to `dusk-curves`, `dusk-poseidon`, and to
-`dusk-plonk` when the `zk` feature is enabled.
-
-The `rkyv-impl` feature forwards to `dusk-curves/rkyv-impl`, which uses rkyv
-size 32.
-
 ## Benchmarks
 
 There are benchmarks for the poseidon tree calculation available with
 ```shell
-cargo bench --features bls-backend-blst
+cargo bench
 ```
 
 and additional benchmarks for the opening proof generation with PLONK
 ```shell
-cargo bench --features bls-backend-blst,zk
+cargo bench --features zk
 ```
 
 This requires a nightly toolchain.
