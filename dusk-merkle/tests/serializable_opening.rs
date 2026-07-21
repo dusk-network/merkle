@@ -6,8 +6,8 @@
 
 use std::cmp;
 
+use dusk_bls12_381::BlsScalar;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
-use dusk_curves::bls12_381::BlsScalar;
 use dusk_merkle::{Aggregate, Opening, Tree};
 use ff::Field;
 use rand::rngs::StdRng;

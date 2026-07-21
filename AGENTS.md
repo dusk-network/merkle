@@ -40,8 +40,6 @@ make clean         # Clean build artifacts
 
 Tests use `--release` because `poseidon-merkle` depends on `dusk-plonk` (via the `zk` feature) — debug builds take extremely long for PLONK proofs.
 
-The `poseidon-merkle` no-std build uses the BLST backend. Its Makefile sets `CC_thumbv6m_none_eabi=clang` and target C flags so the `blst` C dependency can cross-compile to `thumbv6m-none-eabi` without requiring `arm-none-eabi-gcc`.
-
 ## Feature Flags
 
 ### `dusk-merkle`
@@ -57,17 +55,13 @@ The `poseidon-merkle` no-std build uses the BLST backend. Its Makefile sets `CC_
 
 | Feature    | Description                                    | Default |
 |------------|------------------------------------------------|---------|
-| `bls-backend-dusk` | Select the Dusk BLS12-381 backend through `dusk-curves` | No |
-| `bls-backend-blst` | Select the blst BLS12-381 backend through `dusk-curves` | No |
 | `zk`       | PLONK circuit support via `dusk-plonk`        | No      |
-| `rkyv-impl`| rkyv serialization (enables on dusk-curves and dusk-merkle too) | No |
+| `rkyv-impl`| rkyv serialization (enables on bls12_381 and dusk-merkle too) | No |
 | `size_16`  | rkyv 16-bit pointer size (mutually exclusive) | No      |
 | `size_32`  | rkyv 32-bit pointer size (mutually exclusive) | No      |
 | `size_64`  | rkyv 64-bit pointer size (mutually exclusive) | No      |
 
-**Note:** The `size_*` features are mutually exclusive — `--all-features` will fail. Use specific feature combinations (e.g. `--features=rkyv-impl,size_32`). For `poseidon-merkle`, `rkyv-impl` forwards to `dusk-curves/rkyv-impl`, which uses rkyv size 32.
-
-**Note:** `poseidon-merkle` does not select a BLS12-381 backend by default. Consumers must enable exactly one of `bls-backend-dusk` or `bls-backend-blst`; local repo and CI commands use `bls-backend-blst`.
+**Note:** The `size_*` features are mutually exclusive — `--all-features` will fail. Use specific feature combinations (e.g. `--features=rkyv-impl,size_32`).
 
 ## Architecture
 
@@ -89,7 +83,7 @@ The tree is a **sparse** data structure — only populated leaves and their ance
 
 ### Key Dependencies
 
-- `dusk-curves` — BLS12-381 scalar field facade (leaf type for Poseidon tree; backend selected by consumer)
+- `dusk-bls12_381` — BLS12-381 scalar field (leaf type for Poseidon tree)
 - `dusk-poseidon` — Poseidon hash function
 - `dusk-plonk` — PLONK proving system (optional, `zk` feature)
 - `dusk-bytes` — Canonical byte serialization

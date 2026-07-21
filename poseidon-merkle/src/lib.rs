@@ -11,26 +11,8 @@
 #[cfg(feature = "zk")]
 pub mod zk;
 
-#[cfg(all(feature = "bls-backend-dusk", feature = "bls-backend-blst"))]
-compile_error!(
-    "features 'bls-backend-dusk' and 'bls-backend-blst' are mutually exclusive"
-);
-
-#[cfg(not(any(feature = "bls-backend-dusk", feature = "bls-backend-blst")))]
-compile_error!(
-    "no BLS12-381 backend selected: enable either 'bls-backend-dusk' or 'bls-backend-blst'"
-);
-
-#[cfg(all(
-    feature = "rkyv-impl",
-    any(feature = "size_16", feature = "size_64")
-))]
-compile_error!(
-    "feature 'rkyv-impl' requires rkyv size 32 through 'dusk-curves/rkyv-impl'"
-);
-
+use dusk_bls12_381::BlsScalar;
 use dusk_bytes::Serializable;
-use dusk_curves::bls12_381::BlsScalar;
 use dusk_merkle::Aggregate;
 use dusk_poseidon::{Domain, Hash};
 
@@ -53,7 +35,7 @@ pub type Opening<T, const H: usize> = dusk_merkle::Opening<Item<T>, H, ARITY>;
 /// ```rust
 /// use std::cmp::{max, min};
 ///
-/// use dusk_curves::bls12_381::BlsScalar;
+/// use dusk_bls12_381::BlsScalar;
 /// use dusk_merkle::Aggregate;
 /// use dusk_poseidon::{Domain, Hash};
 /// use poseidon_merkle::{ARITY, Item, Tree as PoseidonTree};
