@@ -189,6 +189,18 @@ mod tests {
     }
 
     #[test]
+    fn tree_insert_h16_a4_at_root() {
+        const H16: usize = 16;
+        const A4: usize = 4;
+        type BigTree = Tree<u8, H16, A4>;
+
+        let mut tree = BigTree::new();
+        tree.insert(0, 1);
+
+        assert_eq!(tree.len(), 1);
+    }
+
+    #[test]
     fn tree_deletion() {
         let mut tree = SumTree::new();
 

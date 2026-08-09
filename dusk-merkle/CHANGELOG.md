@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Use `checked_sub` in `child_location` so tree insert does not panic under `overflow-checks` on wasm32 [#117]
 - Reject out-of-range position values during `Opening::from_slice` deserialization
 - Fix `unsafe_op_in_unsafe_fn` warnings for edition 2024
 

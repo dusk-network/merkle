@@ -63,7 +63,11 @@ where
     }
 
     pub(crate) fn child_location(height: usize, position: u64) -> (usize, u64) {
-        let child_cap = capacity(A as u64, H - height - 1);
+        let depth = match H.checked_sub(height).and_then(|d| d.checked_sub(1)) {
+            Some(d) => d,
+            None => panic!("child_location: invalid height {height} for tree height {H}"),
+        };
+        let child_cap = capacity(A as u64, depth);
 
         // Casting to a `usize` should be fine, since the index should be within
         // the `[0, A[` bound anyway.
