@@ -31,20 +31,19 @@ impl<T, const H: usize, const A: usize> Opening<T, H, A>
 where
     T: Aggregate<A> + Clone,
 {
-    /// # Panics
-    /// If the given `position` is not in the `tree`.
-    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Self {
+    pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Option<Self> {
         let positions = [0; H];
         let branch = init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
 
         let mut opening = Self {
-            root: tree.root.item().clone(),
+            root: T::EMPTY_SUBTREE,
             branch,
             positions,
         };
-        fill_opening(&mut opening, &tree.root, 0, position);
+        fill_opening(&mut opening, &tree.root, 0, position)?;
+        opening.root = tree.root.item().clone();
 
-        opening
+        Some(opening)
     }
 
     /// Returns the root of the opening.
@@ -189,20 +188,19 @@ fn fill_opening<T, const H: usize, const A: usize>(
     node: &Node<T, H, A>,
     height: usize,
     position: u64,
-) where
+) -> Option<()>
+where
     T: Aggregate<A> + Clone,
 {
     if height == H {
-        return;
+        return node.has_cached_item().then_some(());
     }
 
     let (child_index, child_pos) =
         Node::<T, H, A>::child_location(height, position);
-    let child = node.children[child_index]
-        .as_ref()
-        .expect("There should be a child at this position");
+    let child = node.children.get(child_index)?.as_ref()?;
 
-    fill_opening(opening, child, height + 1, child_pos);
+    fill_opening(opening, child, height + 1, child_pos)?;
 
     for i in 0..A {
         if let Some(child) = &node.children[i] {
@@ -210,6 +208,7 @@ fn fill_opening<T, const H: usize, const A: usize>(
         }
     }
     opening.positions[height] = child_index;
+    Some(())
 }
 
 #[cfg(test)]

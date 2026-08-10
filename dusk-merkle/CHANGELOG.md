@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Return `None` when recorded tree positions have missing paths [#110]
 - Reject out-of-range position values during `Opening::from_slice` deserialization
 - Fix `unsafe_op_in_unsafe_fn` warnings for edition 2024
 
@@ -119,6 +120,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#110]: https://github.com/dusk-network/merkle/issues/110
 [#91]: https://github.com/dusk-network/merkle/issues/91
 [#73]: https://github.com/dusk-network/merkle/issues/73
 [#62]: https://github.com/dusk-network/merkle/issues/62
