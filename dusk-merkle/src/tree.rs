@@ -13,8 +13,7 @@ use crate::{Aggregate, Node, Opening, Walk, capacity};
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "rkyv-impl",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize),
-    archive_attr(derive(bytecheck::CheckBytes))
+    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
 )]
 pub struct Tree<T, const H: usize, const A: usize> {
     pub(crate) root: Node<T, H, A>,
@@ -106,7 +105,7 @@ where
 
     /// Get the root of the merkle tree.
     pub fn root(&self) -> Ref<'_, T> {
-        self.root.item()
+        self.root.item(0)
     }
 
     /// Returns the root of the smallest sub-tree that holds all the leaves.
@@ -130,7 +129,7 @@ where
                     // current height as the root and height of the smallest
                     // subtree
                     else {
-                        return (smallest_node.item(), height);
+                        return (smallest_node.item(H - height), height);
                     }
                 }
             }
@@ -159,6 +158,196 @@ where
     #[must_use]
     pub const fn capacity(&self) -> u64 {
         capacity(A as u64, H)
+    }
+}
+
+// Extend rkyv's structural byte checks with tree invariants without changing
+// the archived representation.
+#[cfg(feature = "rkyv-impl")]
+mod rkyv_impl {
+    use alloc::boxed::Box;
+    use alloc::collections::BTreeSet;
+    use core::{fmt, ptr};
+
+    use bytecheck::{CheckBytes, Error, StructCheckError};
+    use rkyv::{Archive, Archived};
+
+    use super::ArchivedTree;
+    use crate::Node;
+
+    #[derive(Debug)]
+    struct ArchiveInvariantError(&'static str);
+
+    impl fmt::Display for ArchiveInvariantError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str(self.0)
+        }
+    }
+
+    impl core::error::Error for ArchiveInvariantError {}
+
+    fn field_error(
+        field_name: &'static str,
+        error: impl Error,
+    ) -> StructCheckError {
+        StructCheckError {
+            field_name,
+            inner: Box::new(error),
+        }
+    }
+
+    fn invariant_error(message: &'static str) -> StructCheckError {
+        field_error("positions", ArchiveInvariantError(message))
+    }
+
+    fn checked_capacity<const H: usize, const A: usize>() -> Option<u64> {
+        if H == 0 || A == 0 {
+            return None;
+        }
+
+        let arity = u64::try_from(A).ok()?;
+        let height = u32::try_from(H).ok()?;
+        arity.checked_pow(height)
+    }
+
+    fn validate_node<T, I, const H: usize, const A: usize>(
+        node: &Archived<Node<T, H, A>>,
+        height: usize,
+        position: u64,
+        capacity: u64,
+        positions: &mut I,
+    ) -> Result<(), ArchiveInvariantError>
+    where
+        T: Archive,
+        I: Iterator<Item = u64>,
+    {
+        if height == H {
+            if node.has_children() {
+                return Err(ArchiveInvariantError(
+                    "an archived node extends below the tree height",
+                ));
+            }
+            if !node.has_item() {
+                return Err(ArchiveInvariantError(
+                    "an archived leaf has no item",
+                ));
+            }
+            return match positions.next() {
+                Some(expected) if expected == position => Ok(()),
+                _ => Err(ArchiveInvariantError(
+                    "archived leaves and recorded positions do not match",
+                )),
+            };
+        }
+
+        let child_capacity = capacity
+            / u64::try_from(A).map_err(|_| {
+                ArchiveInvariantError("the archived tree arity exceeds u64")
+            })?;
+        let mut has_children = false;
+        for index in 0..A {
+            if let Some(child) = node.child(index) {
+                has_children = true;
+                let offset = u64::try_from(index)
+                    .ok()
+                    .and_then(|index| index.checked_mul(child_capacity))
+                    .and_then(|offset| position.checked_add(offset))
+                    .ok_or(ArchiveInvariantError(
+                        "an archived path exceeds the tree capacity",
+                    ))?;
+                validate_node(
+                    child,
+                    height + 1,
+                    offset,
+                    child_capacity,
+                    positions,
+                )?;
+            }
+        }
+
+        if !has_children && height != 0 {
+            return Err(ArchiveInvariantError(
+                "an archived path has no populated leaf",
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn validate_archive<T, const H: usize, const A: usize>(
+        tree: &ArchivedTree<T, H, A>,
+    ) -> Result<(), StructCheckError>
+    where
+        T: Archive,
+    {
+        let capacity = checked_capacity::<H, A>().ok_or_else(|| {
+            invariant_error(
+                "tree height and arity must be nonzero and fit in u64 capacity",
+            )
+        })?;
+
+        if tree.positions.iter().any(|position| *position >= capacity) {
+            return Err(invariant_error(
+                "an archived position is outside the tree capacity",
+            ));
+        }
+
+        let mut positions = tree.positions.iter().copied();
+        validate_node(&tree.root, 0, 0, capacity, &mut positions)
+            .map_err(|error| field_error("root", error))?;
+        if positions.next().is_some() {
+            return Err(invariant_error(
+                "archived leaves and recorded positions do not match",
+            ));
+        }
+
+        Ok(())
+    }
+
+    impl<C, T, const H: usize, const A: usize> CheckBytes<C>
+        for ArchivedTree<T, H, A>
+    where
+        C: ?Sized,
+        T: Archive,
+        Archived<Node<T, H, A>>: CheckBytes<C>,
+        Archived<BTreeSet<u64>>: CheckBytes<C>,
+    {
+        // Keep the derive-generated error type for API compatibility while
+        // extending the field checks with semantic tree validation.
+        type Error = StructCheckError;
+
+        unsafe fn check_bytes<'a>(
+            value: *const Self,
+            context: &mut C,
+        ) -> Result<&'a Self, Self::Error> {
+            // SAFETY: The caller guarantees that `value` is aligned and points
+            // to enough bytes for `Self`; each field validator checks its own
+            // archived representation and referenced data.
+            unsafe {
+                <Archived<Node<T, H, A>> as CheckBytes<C>>::check_bytes(
+                    ptr::addr_of!((*value).root),
+                    context,
+                )
+            }
+            .map_err(|error| field_error("root", error))?;
+
+            // SAFETY: This is the second field of the same caller-validated
+            // `ArchivedTree` allocation. Its validator checks all B-tree data
+            // before semantic validation reads it.
+            unsafe {
+                <Archived<BTreeSet<u64>> as CheckBytes<C>>::check_bytes(
+                    ptr::addr_of!((*value).positions),
+                    context,
+                )
+            }
+            .map_err(|error| field_error("positions", error))?;
+
+            // SAFETY: Both fields and all referenced archived data have been
+            // structurally validated above.
+            let tree = unsafe { &*value };
+            validate_archive(tree)?;
+            Ok(tree)
+        }
     }
 }
 
@@ -414,24 +603,143 @@ mod tests {
 
     #[cfg(feature = "rkyv-impl")]
     mod rkyv_impl {
-        use super::SumTree;
+        extern crate std;
+
+        use alloc::boxed::Box;
+        use alloc::vec::Vec;
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        use super::{A, H, SumTree};
+        use crate::{Aggregate, Node};
+
+        const POSITION: u64 = 5;
+
+        fn archive(tree: &SumTree) -> Vec<u8> {
+            rkyv::to_bytes::<_, 128>(tree)
+                .expect("Archiving a tree should succeed")
+                .to_vec()
+        }
+
+        fn assert_rejected_without_unwind(case: &str, tree: &SumTree) {
+            let tree_bytes = archive(tree);
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                rkyv::from_bytes::<SumTree>(&tree_bytes)
+            }));
+
+            match result {
+                Ok(Err(_)) => {}
+                Ok(Ok(_)) => panic!("{case}: malformed archive was accepted"),
+                Err(_) => panic!("{case}: archive rejection unwound"),
+            }
+        }
+
+        fn populated_tree() -> SumTree {
+            let mut tree = SumTree::new();
+            tree.insert(POSITION, 42);
+            tree
+        }
+
+        fn replace_leaf_with_itemless_node(
+            node: &mut Node<u8, H, A>,
+            height: usize,
+            position: u64,
+        ) {
+            let (child_index, child_position) =
+                Node::<u8, H, A>::child_location(height, position);
+            if height + 1 == H {
+                node.children[child_index] = Some(Box::new(Node::new()));
+                return;
+            }
+
+            let child = node.children[child_index]
+                .as_mut()
+                .expect("The inserted item must populate every path node");
+            replace_leaf_with_itemless_node(child, height + 1, child_position);
+        }
+
+        fn tree_with_itemless_leaf() -> SumTree {
+            let mut tree = populated_tree();
+            replace_leaf_with_itemless_node(&mut tree.root, 0, POSITION);
+            tree
+        }
 
         #[test]
-        fn serde() {
-            let mut tree = SumTree::new();
+        fn valid_tree_round_trip_and_operations() {
+            let tree = populated_tree();
+            let mut decoded = rkyv::from_bytes::<SumTree>(&archive(&tree))
+                .expect("Deserializing a valid tree should succeed");
 
-            tree.insert(5, 42);
-            tree.insert(6, 42);
-            tree.insert(5, 42);
+            assert_eq!(tree, decoded);
+            assert!(
+                decoded
+                    .opening(POSITION)
+                    .is_some_and(|opening| opening.verify(42))
+            );
+            assert_eq!(decoded.remove(POSITION), Some(42));
 
-            let tree_bytes = rkyv::to_bytes::<_, 128>(&tree)
-                .expect("Archiving a tree should succeed")
-                .to_vec();
+            let round_trip = rkyv::from_bytes::<SumTree>(&archive(&decoded))
+                .expect("A valid modified tree should still round-trip");
+            assert_eq!(decoded, round_trip);
+        }
 
-            let archived_tree = rkyv::from_bytes::<SumTree>(&tree_bytes)
-                .expect("Deserializing a tree should succeed");
+        #[test]
+        fn itemless_archived_leaf_is_rejected() {
+            assert_rejected_without_unwind(
+                "item-less leaf",
+                &tree_with_itemless_leaf(),
+            );
+        }
 
-            assert_eq!(tree, archived_tree);
+        #[test]
+        fn itemless_archived_leaf_is_rejected_after_cache_warming() {
+            let tree = tree_with_itemless_leaf();
+
+            assert_eq!(*tree.root(), u8::EMPTY_SUBTREE);
+            let (smallest, height) = tree.smallest_subtree();
+            assert_eq!(*smallest, u8::EMPTY_SUBTREE);
+            assert_eq!(height, 1);
+            drop(smallest);
+            assert!(tree.opening(POSITION).is_none());
+            assert!(tree.walk(|_| true).next().is_none());
+
+            assert_rejected_without_unwind("warmed item-less leaf", &tree);
+        }
+
+        #[test]
+        fn inconsistent_archives_are_rejected() {
+            let mut missing_root = populated_tree();
+            let (child_index, _) =
+                Node::<u8, H, A>::child_location(0, POSITION);
+            missing_root.root.children[child_index] = None;
+
+            let mut missing_mid = populated_tree();
+            let (child_index, child_position) =
+                Node::<u8, H, A>::child_location(0, POSITION);
+            let child = missing_mid.root.children[child_index]
+                .as_mut()
+                .expect("The inserted item must populate the root child");
+            let (child_index, _) =
+                Node::<u8, H, A>::child_location(1, child_position);
+            child.children[child_index] = None;
+
+            let mut out_of_capacity = populated_tree();
+            out_of_capacity.positions.insert(1 << 34);
+
+            let mut unrecorded = populated_tree();
+            unrecorded.positions.remove(&POSITION);
+
+            let mut dangling = SumTree::new();
+            dangling.root.children[0] = Some(Box::new(Node::new()));
+
+            for (case, tree) in [
+                ("missing root path", missing_root),
+                ("missing mid-path", missing_mid),
+                ("out-of-capacity position", out_of_capacity),
+                ("unrecorded leaf", unrecorded),
+                ("path without a leaf", dangling),
+            ] {
+                assert_rejected_without_unwind(case, &tree);
+            }
         }
     }
 }
