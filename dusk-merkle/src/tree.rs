@@ -11,10 +11,7 @@ use crate::{Aggregate, Node, Opening, Walk, capacity};
 
 /// A sparse Merkle tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize)
-)]
+#[cfg_attr(feature = "rkyv-impl", derive(rkyv::Archive, rkyv::Serialize))]
 pub struct Tree<T, const H: usize, const A: usize> {
     pub(crate) root: Node<T, H, A>,
     positions: BTreeSet<u64>,
@@ -170,9 +167,9 @@ mod rkyv_impl {
     use core::{fmt, ptr};
 
     use bytecheck::{CheckBytes, Error, StructCheckError};
-    use rkyv::{Archive, Archived};
+    use rkyv::{Archive, Archived, Deserialize, Fallible};
 
-    use super::ArchivedTree;
+    use super::{ArchivedTree, Tree};
     use crate::Node;
 
     #[derive(Debug)]
@@ -272,6 +269,25 @@ mod rkyv_impl {
         }
 
         Ok(())
+    }
+
+    impl<D, T, const H: usize, const A: usize> Deserialize<Tree<T, H, A>, D>
+        for ArchivedTree<T, H, A>
+    where
+        D: Fallible + ?Sized,
+        T: Archive,
+        Archived<Node<T, H, A>>: Deserialize<Node<T, H, A>, D>,
+        Archived<BTreeSet<u64>>: Deserialize<BTreeSet<u64>, D>,
+    {
+        fn deserialize(
+            &self,
+            deserializer: &mut D,
+        ) -> Result<Tree<T, H, A>, D::Error> {
+            let root = self.root.deserialize(deserializer)?;
+            root.clear_internal_caches(0);
+            let positions = self.positions.deserialize(deserializer)?;
+            Ok(Tree { root, positions })
+        }
     }
 
     fn validate_archive<T, const H: usize, const A: usize>(
@@ -639,6 +655,41 @@ mod tests {
             tree
         }
 
+        fn decode_without_unwind(case: &str, tree: &SumTree) -> SumTree {
+            let tree_bytes = archive(tree);
+            let result = catch_unwind(AssertUnwindSafe(|| {
+                rkyv::from_bytes::<SumTree>(&tree_bytes)
+            }));
+
+            match result {
+                Ok(Ok(tree)) => tree,
+                Ok(Err(error)) => {
+                    panic!(
+                        "{case}: structurally valid archive was rejected: {error}"
+                    )
+                }
+                Err(_) => panic!("{case}: checked deserialization unwound"),
+            }
+        }
+
+        fn node_at_height_mut(
+            tree: &mut SumTree,
+            target_height: usize,
+            position: u64,
+        ) -> &mut Node<u8, H, A> {
+            let mut node = &mut tree.root;
+            let mut child_position = position;
+            for height in 0..target_height {
+                let (child_index, next_position) =
+                    Node::<u8, H, A>::child_location(height, child_position);
+                node = node.children[child_index]
+                    .as_mut()
+                    .expect("The inserted items must populate the path");
+                child_position = next_position;
+            }
+            node
+        }
+
         fn replace_leaf_with_itemless_node(
             node: &mut Node<u8, H, A>,
             height: usize,
@@ -680,6 +731,126 @@ mod tests {
             let round_trip = rkyv::from_bytes::<SumTree>(&archive(&decoded))
                 .expect("A valid modified tree should still round-trip");
             assert_eq!(decoded, round_trip);
+        }
+
+        fn valid_two_leaf_tree() -> SumTree {
+            let mut tree = SumTree::new();
+            tree.insert(4, 20);
+            tree.insert(5, 22);
+            tree
+        }
+
+        type OperationResults =
+            (u8, Option<crate::Opening<u8, H, A>>, (u8, usize), Vec<u8>);
+
+        fn operation_results_without_unwind(
+            case: &str,
+            tree: &SumTree,
+            position: u64,
+        ) -> OperationResults {
+            catch_unwind(AssertUnwindSafe(|| {
+                let root = *tree.root();
+                let opening = tree.opening(position);
+                let (smallest, height) = tree.smallest_subtree();
+                let smallest = (*smallest, height);
+                let walk = tree
+                    .walk(|item| *item <= 42)
+                    .map(|item| *item)
+                    .collect::<Vec<_>>();
+                (root, opening, smallest, walk)
+            }))
+            .unwrap_or_else(|_| {
+                panic!("{case}: decoded tree operation unwound")
+            })
+        }
+
+        fn assert_decodes_like(
+            case: &str,
+            archived: &SumTree,
+            expected: &SumTree,
+            position: u64,
+        ) {
+            let expected = operation_results_without_unwind(
+                "canonical tree",
+                expected,
+                position,
+            );
+            let decoded = decode_without_unwind(case, archived);
+            assert!(
+                !decoded.root.has_cached_item(),
+                "{case}: the decoded root cache must be cold"
+            );
+            assert_eq!(
+                operation_results_without_unwind(case, &decoded, position),
+                expected,
+                "{case}: decoded operations must use aggregates derived from leaves"
+            );
+        }
+
+        #[test]
+        fn noncanonical_empty_root_cache_is_discarded() {
+            let expected = SumTree::new();
+            let archived = SumTree::new();
+            archived.root.replace_cached_item(Some(99));
+
+            assert_decodes_like("empty root cache", &archived, &expected, 0);
+        }
+
+        #[test]
+        fn noncanonical_populated_root_cache_is_discarded() {
+            let expected = populated_tree();
+            let archived = expected.clone();
+            archived.root.replace_cached_item(Some(99));
+
+            assert_decodes_like(
+                "populated root cache",
+                &archived,
+                &expected,
+                POSITION,
+            );
+        }
+
+        #[test]
+        fn noncanonical_intermediate_cache_is_discarded() {
+            let expected = valid_two_leaf_tree();
+            let mut archived = expected.clone();
+            node_at_height_mut(&mut archived, H - 1, 4)
+                .replace_cached_item(Some(99));
+            archived.root.replace_cached_item(None);
+
+            assert_decodes_like(
+                "intermediate cache with cold root",
+                &archived,
+                &expected,
+                4,
+            );
+        }
+
+        #[test]
+        fn valid_cold_and_warmed_archives_preserve_operations() {
+            let cold = valid_two_leaf_tree();
+            let warmed = cold.clone();
+            let expected =
+                operation_results_without_unwind("valid tree", &warmed, 4);
+
+            assert_eq!(expected.0, 42);
+            assert!(expected.1.is_some_and(|opening| {
+                *opening.root() == 42 && opening.verify(20)
+            }));
+            assert_eq!(expected.2, (42, 1));
+            assert_eq!(expected.3, [20, 22]);
+
+            for (case, tree) in [
+                ("valid cold archive", &cold),
+                ("valid warmed archive", &warmed),
+            ] {
+                let decoded = decode_without_unwind(case, tree);
+                assert!(!decoded.root.has_cached_item());
+                assert_eq!(
+                    operation_results_without_unwind(case, &decoded, 4),
+                    expected
+                );
+            }
         }
 
         #[test]

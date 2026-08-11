@@ -16,6 +16,20 @@ pub struct Node<T, const H: usize, const A: usize> {
     pub(crate) children: [Option<Box<Node<T, H, A>>>; A],
 }
 
+#[cfg(feature = "rkyv-impl")]
+impl<T, const H: usize, const A: usize> Node<T, H, A> {
+    pub(crate) fn clear_internal_caches(&self, height: usize) {
+        if height == H {
+            return;
+        }
+
+        self.item.replace(None);
+        for child in self.children.iter().flatten() {
+            child.clear_internal_caches(height + 1);
+        }
+    }
+}
+
 impl<T, const H: usize, const A: usize> Node<T, H, A>
 where
     T: Aggregate<A>,
@@ -88,6 +102,11 @@ where
     // archives: `item()` can lazily populate an item-less leaf.
     pub(crate) fn has_cached_item(&self) -> bool {
         self.item.borrow().is_some()
+    }
+
+    #[cfg(all(test, feature = "rkyv-impl"))]
+    pub(crate) fn replace_cached_item(&self, item: Option<T>) {
+        self.item.replace(item);
     }
 
     pub(crate) fn insert(
