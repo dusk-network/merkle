@@ -6,8 +6,6 @@
 
 use alloc::vec::Vec;
 
-#[cfg(feature = "rkyv-impl")]
-use bytecheck::CheckBytes;
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
@@ -16,15 +14,115 @@ use crate::{Aggregate, Node, Tree, init_array};
 
 /// An opening for a given position in a merkle tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-#[cfg_attr(
-    feature = "rkyv-impl",
-    derive(Archive, Serialize, Deserialize),
-    archive_attr(derive(CheckBytes))
-)]
+#[cfg_attr(feature = "rkyv-impl", derive(Archive, Serialize, Deserialize))]
 pub struct Opening<T, const H: usize, const A: usize> {
     root: T,
     branch: [[T; A]; H],
     positions: [usize; H],
+}
+
+#[cfg(feature = "rkyv-impl")]
+mod rkyv_impl {
+    use core::{fmt, ptr};
+
+    use bytecheck::{CheckBytes, ErrorBox, StructCheckError};
+    use rkyv::{Archive, Archived};
+
+    use super::ArchivedOpening;
+
+    #[derive(Debug)]
+    struct PositionOutOfRange {
+        index: usize,
+        position: u128,
+        arity: u128,
+    }
+
+    impl fmt::Display for PositionOutOfRange {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(
+                f,
+                "position at index {} is {}, but arity is {}",
+                self.index, self.position, self.arity
+            )
+        }
+    }
+
+    impl core::error::Error for PositionOutOfRange {}
+
+    impl<C, T, const H: usize, const A: usize> CheckBytes<C>
+        for ArchivedOpening<T, H, A>
+    where
+        C: ?Sized,
+        T: Archive,
+        Archived<T>: CheckBytes<C>,
+        Archived<[[T; A]; H]>: CheckBytes<C>,
+        Archived<[usize; H]>: CheckBytes<C>,
+    {
+        type Error = StructCheckError;
+
+        unsafe fn check_bytes<'a>(
+            value: *const Self,
+            context: &mut C,
+        ) -> Result<&'a Self, Self::Error> {
+            // SAFETY: The caller guarantees that `value` is aligned and points
+            // to enough bytes for the archived opening, so each field pointer
+            // is aligned and points to enough bytes for its field.
+            unsafe {
+                Archived::<T>::check_bytes(
+                    ptr::addr_of!((*value).root),
+                    context,
+                )
+            }
+            .map_err(|error| StructCheckError {
+                field_name: "root",
+                inner: ErrorBox::new(error),
+            })?;
+            unsafe {
+                Archived::<[[T; A]; H]>::check_bytes(
+                    ptr::addr_of!((*value).branch),
+                    context,
+                )
+            }
+            .map_err(|error| StructCheckError {
+                field_name: "branch",
+                inner: ErrorBox::new(error),
+            })?;
+            let positions = unsafe {
+                Archived::<[usize; H]>::check_bytes(
+                    ptr::addr_of!((*value).positions),
+                    context,
+                )
+            }
+            .map_err(|error| StructCheckError {
+                field_name: "positions",
+                inner: ErrorBox::new(error),
+            })?;
+
+            for (index, position) in positions.iter().enumerate() {
+                let position = u128::from(rkyv::FixedUsize::from(*position));
+                let arity = A as u128;
+                if position >= arity {
+                    return Err(StructCheckError {
+                        field_name: "positions",
+                        inner: ErrorBox::new(PositionOutOfRange {
+                            index,
+                            position,
+                            arity,
+                        }),
+                    });
+                }
+            }
+
+            // SAFETY: All fields were structurally validated above.
+            let checked = unsafe { &*value };
+            let Self {
+                root: _,
+                branch: _,
+                positions: _,
+            } = checked;
+            Ok(checked)
+        }
+    }
 }
 
 impl<T, const H: usize, const A: usize> Opening<T, H, A>
@@ -301,5 +399,113 @@ mod tests {
         opening.positions[H - 1] = A;
 
         assert!(!opening.verify('A'));
+    }
+
+    #[cfg(feature = "rkyv-impl")]
+    mod rkyv_tests {
+        extern crate std;
+
+        use rkyv::{AlignedVec, Archived};
+
+        use self::std::panic::{AssertUnwindSafe, catch_unwind};
+        use super::*;
+
+        type RkyvOpening = Opening<u8, H, A>;
+
+        fn opening() -> (RkyvOpening, u8) {
+            let mut tree = Tree::<u8, H, A>::new();
+            let leaf = 42;
+            tree.insert(5, leaf);
+            (tree.opening(5).expect("the leaf has an opening"), leaf)
+        }
+
+        fn position_offset(bytes: &[u8], index: usize) -> usize {
+            let archived = rkyv::check_archived_root::<RkyvOpening>(bytes)
+                .expect("the unmodified opening is valid");
+            let position = archived.positions.as_ptr().wrapping_add(index);
+
+            // SAFETY: Both pointers refer to the same archive allocation.
+            unsafe {
+                position.cast::<u8>().offset_from(bytes.as_ptr()) as usize
+            }
+        }
+
+        fn overwrite_position(
+            bytes: &mut AlignedVec,
+            index: usize,
+            position: rkyv::FixedUsize,
+        ) {
+            let offset = position_offset(bytes, index);
+            let archived_position: Archived<usize> = position.into();
+
+            // SAFETY: The offset was obtained from this aligned archive's
+            // positions array, and `archived_position` has the field's type.
+            unsafe {
+                bytes
+                    .as_mut_ptr()
+                    .add(offset)
+                    .cast::<Archived<usize>>()
+                    .write(archived_position);
+            }
+        }
+
+        fn archived_position(bytes: &[u8], index: usize) -> rkyv::FixedUsize {
+            // SAFETY: `overwrite_position` only changes an archived `usize`,
+            // for which every bit pattern is structurally valid.
+            let archived = unsafe { rkyv::archived_root::<RkyvOpening>(bytes) };
+            rkyv::FixedUsize::from(archived.positions[index])
+        }
+
+        #[test]
+        fn valid_opening_roundtrips_and_verifies() {
+            let (opening, leaf) = opening();
+            assert!(opening.verify(leaf));
+
+            let bytes = rkyv::to_bytes::<_, 256>(&opening)
+                .expect("archiving an opening should succeed");
+            let roundtrip = rkyv::from_bytes::<RkyvOpening>(&bytes)
+                .expect("a valid opening should deserialize");
+
+            assert_eq!(roundtrip, opening);
+            assert!(roundtrip.verify(leaf));
+        }
+
+        #[test]
+        fn archived_positions_at_or_above_arity_are_rejected_without_unwind() {
+            let (opening, _) = opening();
+            let bytes = rkyv::to_bytes::<_, 256>(&opening)
+                .expect("archiving an opening should succeed");
+            rkyv::check_archived_root::<RkyvOpening>(&bytes)
+                .expect("the unmodified archive should be valid");
+
+            // Include a value whose lower half is zero so narrowing to a
+            // smaller host `usize` cannot accidentally make it valid.
+            let high_bits_only =
+                (1u128 << (rkyv::FixedUsize::BITS / 2)) as rkyv::FixedUsize;
+            let invalid_positions = [
+                A as rkyv::FixedUsize,
+                (A + 1) as rkyv::FixedUsize,
+                high_bits_only,
+                rkyv::FixedUsize::MAX,
+            ];
+            for index in 0..H {
+                for position in invalid_positions {
+                    let mut malformed = bytes.clone();
+                    overwrite_position(&mut malformed, index, position);
+                    assert_eq!(archived_position(&malformed, index), position);
+
+                    let result = catch_unwind(AssertUnwindSafe(|| {
+                        rkyv::from_bytes::<RkyvOpening>(&malformed)
+                    }));
+                    let result = result.expect(
+                        "checked deserialization must not unwind for an out-of-range position",
+                    );
+                    assert!(
+                        result.is_err(),
+                        "position {position} at index {index} should be rejected"
+                    );
+                }
+            }
+        }
     }
 }
