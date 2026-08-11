@@ -207,6 +207,9 @@ mod rkyv_impl {
         arity.checked_pow(height)
     }
 
+    // The linear leaf-position match relies on `BTreeSet` iteration yielding
+    // ascending positions and index-ordered DFS visiting leaves in the same
+    // order.
     fn validate_node<T, I, const H: usize, const A: usize>(
         node: &Archived<Node<T, H, A>>,
         height: usize,
@@ -320,6 +323,9 @@ mod rkyv_impl {
         Ok(())
     }
 
+    // Internal aggregate caches are deliberately not validated here. The
+    // corresponding `Deserialize` impl must discard them so that accepted
+    // archives produce aggregates derived from their leaves.
     impl<C, T, const H: usize, const A: usize> CheckBytes<C>
         for ArchivedTree<T, H, A>
     where
@@ -622,11 +628,12 @@ mod tests {
         extern crate std;
 
         use alloc::boxed::Box;
+        use alloc::string::ToString;
         use alloc::vec::Vec;
         use std::panic::{AssertUnwindSafe, catch_unwind};
 
         use super::{A, H, SumTree};
-        use crate::{Aggregate, Node};
+        use crate::{Aggregate, Node, Opening};
 
         const POSITION: u64 = 5;
 
@@ -636,14 +643,21 @@ mod tests {
                 .to_vec()
         }
 
-        fn assert_rejected_without_unwind(case: &str, tree: &SumTree) {
+        fn assert_rejected_without_unwind(
+            case: &str,
+            tree: &SumTree,
+            expected_error: &str,
+        ) {
             let tree_bytes = archive(tree);
             let result = catch_unwind(AssertUnwindSafe(|| {
                 rkyv::from_bytes::<SumTree>(&tree_bytes)
             }));
 
             match result {
-                Ok(Err(_)) => {}
+                Ok(Err(error)) => assert!(
+                    error.to_string().contains(expected_error),
+                    "{case}: expected error containing {expected_error:?}, got {error}"
+                ),
                 Ok(Ok(_)) => panic!("{case}: malformed archive was accepted"),
                 Err(_) => panic!("{case}: archive rejection unwound"),
             }
@@ -741,7 +755,7 @@ mod tests {
         }
 
         type OperationResults =
-            (u8, Option<crate::Opening<u8, H, A>>, (u8, usize), Vec<u8>);
+            (u8, Option<Opening<u8, H, A>>, (u8, usize), Vec<u8>);
 
         fn operation_results_without_unwind(
             case: &str,
@@ -854,16 +868,30 @@ mod tests {
         }
 
         #[test]
+        fn archived_node_below_tree_height_is_rejected() {
+            let mut tree = populated_tree();
+            let leaf = node_at_height_mut(&mut tree, H, POSITION);
+            leaf.children[0] = Some(Box::new(Node::new()));
+
+            assert_rejected_without_unwind(
+                "node below tree height",
+                &tree,
+                "an archived node extends below the tree height",
+            );
+        }
+
+        #[test]
         fn itemless_archived_leaf_is_rejected() {
             assert_rejected_without_unwind(
                 "item-less leaf",
                 &tree_with_itemless_leaf(),
+                "an archived leaf has no item",
             );
         }
 
         #[test]
         fn itemless_archived_leaf_is_rejected_after_cache_warming() {
-            let tree = tree_with_itemless_leaf();
+            let mut tree = tree_with_itemless_leaf();
 
             assert_eq!(*tree.root(), u8::EMPTY_SUBTREE);
             let (smallest, height) = tree.smallest_subtree();
@@ -872,8 +900,31 @@ mod tests {
             drop(smallest);
             assert!(tree.opening(POSITION).is_none());
             assert!(tree.walk(|_| true).next().is_none());
+            assert!(tree.remove(POSITION).is_none());
 
-            assert_rejected_without_unwind("warmed item-less leaf", &tree);
+            assert_rejected_without_unwind(
+                "warmed item-less leaf",
+                &tree,
+                "an archived leaf has no item",
+            );
+        }
+
+        #[test]
+        fn itemless_sibling_is_rejected_after_opening_cache_warming() {
+            let mut tree = valid_two_leaf_tree();
+            replace_leaf_with_itemless_node(&mut tree.root, 0, POSITION);
+
+            let opening = tree
+                .opening(4)
+                .expect("the populated sibling must have an opening");
+            assert!(opening.verify(20));
+            assert!(tree.remove(POSITION).is_none());
+
+            assert_rejected_without_unwind(
+                "item-less sibling warmed by opening",
+                &tree,
+                "an archived leaf has no item",
+            );
         }
 
         #[test]
@@ -899,17 +950,46 @@ mod tests {
             let mut unrecorded = populated_tree();
             unrecorded.positions.remove(&POSITION);
 
+            let mut wrong_position = populated_tree();
+            wrong_position.positions.remove(&POSITION);
+            wrong_position.positions.insert(4);
+
             let mut dangling = SumTree::new();
             dangling.root.children[0] = Some(Box::new(Node::new()));
 
-            for (case, tree) in [
-                ("missing root path", missing_root),
-                ("missing mid-path", missing_mid),
-                ("out-of-capacity position", out_of_capacity),
-                ("unrecorded leaf", unrecorded),
-                ("path without a leaf", dangling),
+            for (case, tree, expected_error) in [
+                (
+                    "missing root path",
+                    missing_root,
+                    "archived leaves and recorded positions do not match",
+                ),
+                (
+                    "missing mid-path",
+                    missing_mid,
+                    "an archived path has no populated leaf",
+                ),
+                (
+                    "out-of-capacity position",
+                    out_of_capacity,
+                    "an archived position is outside the tree capacity",
+                ),
+                (
+                    "unrecorded leaf",
+                    unrecorded,
+                    "archived leaves and recorded positions do not match",
+                ),
+                (
+                    "wrong recorded position",
+                    wrong_position,
+                    "archived leaves and recorded positions do not match",
+                ),
+                (
+                    "path without a leaf",
+                    dangling,
+                    "an archived path has no populated leaf",
+                ),
             ] {
-                assert_rejected_without_unwind(case, &tree);
+                assert_rejected_without_unwind(case, &tree, expected_error);
             }
         }
     }

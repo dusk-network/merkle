@@ -46,6 +46,8 @@ where
         }
     }
 
+    // `height` is this node's depth from the root: `0` for the root and `H`
+    // for a leaf.
     pub(crate) fn item(&self, height: usize) -> Ref<'_, T> {
         if self.item.borrow().is_none() {
             // Compute our item, recursing into the children.
@@ -78,7 +80,8 @@ where
     }
 
     // Unlike `item`, this does not allow lazy cache population to turn an
-    // item-less terminal node into an apparently populated leaf.
+    // item-less terminal node into an apparently populated leaf. `height` is
+    // the node's depth from the root, from `0` at the root to `H` at a leaf.
     pub(crate) fn populated_item(&self, height: usize) -> Option<Ref<'_, T>> {
         if height == H && !self.has_cached_item() {
             return None;
@@ -171,6 +174,7 @@ mod rkyv_impl {
     use core::cell::RefCell;
 
     use bytecheck::CheckBytes;
+    use rkyv::option::ArchivedOption;
     use rkyv::ser::Serializer;
     use rkyv::{
         Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
@@ -204,9 +208,7 @@ mod rkyv_impl {
         }
 
         pub(crate) fn has_children(&self) -> bool {
-            self.children
-                .iter()
-                .any(rkyv::option::ArchivedOption::is_some)
+            self.children.iter().any(ArchivedOption::is_some)
         }
     }
 
