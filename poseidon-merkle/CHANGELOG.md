@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Benchmark cold decoded-tree root recomputation against warmed dirty paths [#125]
+- Restore compilation of the PLONK benchmark
+
 ### Changed
 
 - Update `dusk-plonk` to `v0.22.0-rc.0`
@@ -84,6 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add poseidon-merkle crate [#58]
 
 <!-- ISSUES -->
+[#125]: https://github.com/dusk-network/merkle/issues/125
 [#85]: https://github.com/dusk-network/merkle/issues/85
 [#58]: https://github.com/dusk-network/merkle/issues/58
 

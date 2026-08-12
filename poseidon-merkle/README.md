@@ -39,7 +39,19 @@ and additional benchmarks for the opening proof generation with PLONK
 cargo bench --features zk
 ```
 
-This requires a nightly toolchain.
+The first-root cost after checked RKYV deserialization can be compared with a
+warmed tree after one or four leaf updates using:
+```shell
+cargo bench -p poseidon-merkle --bench poseidon \
+  --features rkyv-impl,size_32 -- poseidon_first_root
+```
+The benchmark times `root()` separately from decode and also reports the
+combined decode-and-first-root cost. As with `dusk-merkle`, checked
+deserialization discards archived internal aggregates because their relation to
+the leaves cannot be established by structural validation. The first aggregate
+read rebuilds those caches from leaf values.
+
+The PLONK benchmarks require a nightly toolchain.
 
 ## License
 
