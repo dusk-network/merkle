@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Benchmark cold decoded-tree root recomputation against warmed dirty paths [#125]
+
 ### Changed
 
 - Update `dusk-bls12_381` dev dependency to v0.14
@@ -124,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#125]: https://github.com/dusk-network/merkle/issues/125
 [#121]: https://github.com/dusk-network/merkle/issues/121
 [#119]: https://github.com/dusk-network/merkle/issues/119
 [#110]: https://github.com/dusk-network/merkle/issues/110

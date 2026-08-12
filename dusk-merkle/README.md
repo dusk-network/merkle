@@ -90,6 +90,41 @@ For the opening proof creation in zero-knowledge:
 cargo bench -p poseidon-merkle --features zk
 ```
 
+To compare the first root read after checked RKYV deserialization with a warmed
+tree after one or four leaf updates:
+```shell
+cargo bench -p dusk-merkle --bench blake3 \
+  --features rkyv-impl,size_32 -- blake3_first_root
+```
+The benchmark times `root()` separately from decode and also reports the
+combined decode-and-first-root cost. Tree construction, checked decode for the
+root-only case, leaf updates, and destruction are outside the timed operation.
+
+Large wasm64 page trees with 10, 50, and 100 GiB of densely packed or scattered
+populated pages can be measured separately using:
+```shell
+cargo bench -p dusk-merkle --bench blake3 \
+  --features rkyv-impl,size_32 -- blake3_wasm64_first_root
+```
+This benchmark materializes only the page hashes and Merkle nodes, not the
+corresponding contract-memory bytes.
+
+The cold-root cost follows the number and distribution of populated pages, not
+only the declared memory length. Widely scattered pages share fewer internal
+nodes than densely packed pages and can make the first root after decoding
+substantially more expensive. Large wasm64 users should measure their expected
+occupancy: a 100 GiB scenario can take hundreds of milliseconds to rebuild on
+current desktop hardware when its pages are spread across the address space.
+
+## Checked RKYV deserialization
+
+With the `rkyv-impl` feature, checked tree deserialization deliberately discards
+all archived internal aggregate caches. Structural validation establishes the
+shape, leaves, and recorded positions of the tree, but cannot establish that an
+arbitrary cached aggregate was derived from those leaves. The first aggregate
+read therefore recomputes the populated internal nodes from leaf values; later
+reads use the lazily rebuilt caches until an update dirties their paths.
+
 ## Implementations
 
 A merkle tree using the poseidon hash function for aggregation and plonk to
