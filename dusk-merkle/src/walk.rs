@@ -50,7 +50,9 @@ where
             for i in *index..A {
                 *index = i + 1;
                 if let Some(leaf) = &node.children[i] {
-                    let leaf = leaf.item();
+                    let Some(leaf) = leaf.populated_item(h + 1) else {
+                        continue;
+                    };
                     if (self.walker)(&*leaf) {
                         return Some(leaf);
                     }
@@ -71,7 +73,7 @@ where
                 self.indices[h] = i;
                 if let Some(child) = &node.children[i] {
                     let child = child.as_ref();
-                    if (self.walker)(&*child.item()) {
+                    if (self.walker)(&*child.item(h + 1)) {
                         self.path[h] = Some(child);
                         break;
                     }
@@ -94,7 +96,7 @@ where
 
                 if let Some(child) = &node.children[i] {
                     let child = child.as_ref();
-                    if (self.walker)(&*child.item()) {
+                    if (self.walker)(&*child.item(h + 1)) {
                         self.path[h] = Some(child);
                         if let Some(item) = self.advance(child, h + 1) {
                             return Some(item);

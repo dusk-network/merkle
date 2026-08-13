@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Return `None` when recorded tree positions have missing paths [#110]
 - Reject archived openings with out-of-range positions during checked RKYV deserialization [#121]
 - Return `false` when an opening contains an out-of-range position [#109]
+- Reject archived trees with inconsistent positions, paths, or leaves [#110] [#119]
 - Reject out-of-range position values during `Opening::from_slice` deserialization
 - Fix `unsafe_op_in_unsafe_fn` warnings for edition 2024
 
@@ -123,6 +124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#121]: https://github.com/dusk-network/merkle/issues/121
+[#119]: https://github.com/dusk-network/merkle/issues/119
 [#110]: https://github.com/dusk-network/merkle/issues/110
 [#109]: https://github.com/dusk-network/merkle/issues/109
 [#91]: https://github.com/dusk-network/merkle/issues/91

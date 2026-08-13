@@ -32,15 +32,18 @@ where
         }
     }
 
-    pub(crate) fn item(&self) -> Ref<'_, T> {
-        // a leaf will always have a computed item, so we never go into it
+    // `height` is this node's depth from the root: `0` for the root and `H`
+    // for a leaf.
+    pub(crate) fn item(&self, height: usize) -> Ref<'_, T> {
         if self.item.borrow().is_none() {
-            // compute our item, recursing into the children.
+            // Compute our item, recursing into the children.
             let empty_subtree = &T::EMPTY_SUBTREE;
             let mut item_refs = [empty_subtree; A];
 
             let child_items: [Option<Ref<T>>; A] = init_array(|i| {
-                self.children[i].as_ref().map(|item| item.item())
+                self.children[i]
+                    .as_ref()
+                    .and_then(|item| item.populated_item(height + 1))
             });
 
             let mut has_children = false;
@@ -58,8 +61,18 @@ where
             }
         }
 
-        // unwrapping is ok since we ensure it exists
+        // Unwrapping is safe because we ensure the item exists above.
         Ref::map(self.item.borrow(), |item| item.as_ref().unwrap())
+    }
+
+    // Unlike `item`, this does not allow lazy cache population to turn an
+    // item-less terminal node into an apparently populated leaf. `height` is
+    // the node's depth from the root, from `0` at the root to `H` at a leaf.
+    pub(crate) fn populated_item(&self, height: usize) -> Option<Ref<'_, T>> {
+        if height == H && !self.has_cached_item() {
+            return None;
+        }
+        Some(self.item(height))
     }
 
     pub(crate) fn child_location(height: usize, position: u64) -> (usize, u64) {
@@ -142,6 +155,7 @@ mod rkyv_impl {
     use core::cell::RefCell;
 
     use bytecheck::CheckBytes;
+    use rkyv::option::ArchivedOption;
     use rkyv::ser::Serializer;
     use rkyv::{
         Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
@@ -163,6 +177,20 @@ mod rkyv_impl {
     pub struct NodeResolver<T: Archive, const H: usize, const A: usize> {
         item: Resolver<Option<T>>,
         children: Resolver<[Option<Box<Node<T, H, A>>>; A]>,
+    }
+
+    impl<T: Archive, const H: usize, const A: usize> ArchivedNode<T, H, A> {
+        pub(crate) fn has_item(&self) -> bool {
+            self.item.is_some()
+        }
+
+        pub(crate) fn child(&self, index: usize) -> Option<&Self> {
+            self.children.get(index)?.as_deref()
+        }
+
+        pub(crate) fn has_children(&self) -> bool {
+            self.children.iter().any(ArchivedOption::is_some)
+        }
     }
 
     impl<T, const H: usize, const A: usize> Archive for Node<T, H, A>
