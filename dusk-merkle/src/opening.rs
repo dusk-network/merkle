@@ -139,7 +139,7 @@ where
             positions,
         };
         fill_opening(&mut opening, &tree.root, 0, position)?;
-        opening.root = tree.root.item().clone();
+        opening.root = tree.root.item(0).clone();
 
         Some(opening)
     }
@@ -302,7 +302,9 @@ where
 
     for i in 0..A {
         if let Some(child) = &node.children[i] {
-            opening.branch[height][i] = child.item().clone();
+            if let Some(item) = child.populated_item(height + 1) {
+                opening.branch[height][i] = item.clone();
+            }
         }
     }
     opening.positions[height] = child_index;
