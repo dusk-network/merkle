@@ -301,10 +301,10 @@ where
     fill_opening(opening, child, height + 1, child_pos)?;
 
     for i in 0..A {
-        if let Some(child) = &node.children[i] {
-            if let Some(item) = child.populated_item(height + 1) {
-                opening.branch[height][i] = item.clone();
-            }
+        if let Some(child) = &node.children[i]
+            && let Some(item) = child.populated_item(height + 1)
+        {
+            opening.branch[height][i] = item.clone();
         }
     }
     opening.positions[height] = child_index;
