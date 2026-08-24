@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update Criterion to 0.8 [#129]
 - Raise the MSRV to Rust 1.96.1 [#127]
 - Update `dusk-bls12_381` dev dependency to v0.14
 - Update to rust stable version 1.85, edition 2024
@@ -124,6 +125,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#129]: https://github.com/dusk-network/merkle/issues/129
 [#127]: https://github.com/dusk-network/merkle/issues/127
 [#121]: https://github.com/dusk-network/merkle/issues/121
 [#119]: https://github.com/dusk-network/merkle/issues/119
