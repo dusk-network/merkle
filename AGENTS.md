@@ -94,7 +94,7 @@ The tree is a **sparse** data structure — only populated leaves and their ance
 - **`no_std`**: Both crates are `no_std`. Do not add `std` dependencies.
 - **Serialization**: Use `dusk-bytes` for canonical byte encoding, `rkyv` for zero-copy deserialization (feature-gated).
 - **Field ordering**: Do not reorder fields in `rkyv`-serializable structs — it breaks archive compatibility.
-- **Edition 2024**: The workspace uses Rust edition 2024 with MSRV 1.85.
+- **Edition 2024**: The workspace uses Rust edition 2024 with MSRV 1.96.1.
 - **`--release` for tests**: Always use `--release` when running tests that exercise PLONK proofs (`poseidon-merkle` with `zk` feature).
 
 ## Elevated Care Zones
