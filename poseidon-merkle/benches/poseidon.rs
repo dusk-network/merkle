@@ -25,12 +25,7 @@ fn bench_poseidon(c: &mut Criterion) {
         b.iter(|| {
             let pos = rng.next_u64() % u32::MAX as u64;
 
-            let hash = Hash::digest(Domain::Other, &[BlsScalar::from(pos)])
-                .into_iter()
-                .next()
-                .expect(
-                    "Poseidon hash output must contain at least one element",
-                );
+            let hash = Hash::digest(Domain::Other, &[BlsScalar::from(pos)])[0];
 
             let item = PoseidonItem { hash, data: () };
             tree.insert(black_box(pos), black_box(item));

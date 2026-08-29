@@ -134,16 +134,8 @@ where
     };
 
     fn aggregate(items: [&Self; ARITY]) -> Self {
-        let empty = &T::EMPTY_SUBTREE;
-
-        let mut level_hashes = [BlsScalar::zero(); ARITY];
-        let mut level_data = [empty; ARITY];
-
-        // grab hashes and data
-        items.into_iter().enumerate().for_each(|(i, item)| {
-            level_hashes[i] = item.hash;
-            level_data[i] = &item.data;
-        });
+        let level_hashes = items.map(|item| item.hash);
+        let level_data = items.map(|item| &item.data);
 
         // create new aggregated item with the hash being the poseidon hash of
         // the previous level
