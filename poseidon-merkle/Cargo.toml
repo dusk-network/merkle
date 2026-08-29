@@ -55,7 +55,3 @@ required-features = ["zk"]
 [[test]]
 name = "zk"
 required-features = ["zk"]
-
-[[example]]
-name = "zk"
-required-features = ["zk"]
