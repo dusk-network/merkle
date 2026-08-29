@@ -5,9 +5,10 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::boxed::Box;
+use core::array;
 use core::cell::{Ref, RefCell};
 
-use crate::{Aggregate, capacity, init_array};
+use crate::{Aggregate, capacity};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[doc(hidden)]
@@ -40,7 +41,7 @@ where
             let empty_subtree = &T::EMPTY_SUBTREE;
             let mut item_refs = [empty_subtree; A];
 
-            let child_items: [Option<Ref<T>>; A] = init_array(|i| {
+            let child_items: [Option<Ref<T>>; A] = array::from_fn(|i| {
                 self.children[i]
                     .as_ref()
                     .and_then(|item| item.populated_item(height + 1))

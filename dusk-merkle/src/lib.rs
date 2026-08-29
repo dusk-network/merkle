@@ -10,9 +10,6 @@
 
 extern crate alloc;
 
-use core::mem::MaybeUninit;
-use core::ptr;
-
 mod node;
 mod opening;
 mod tree;
@@ -36,25 +33,6 @@ pub trait Aggregate<const A: usize> {
 impl<const A: usize> Aggregate<A> for () {
     const EMPTY_SUBTREE: Self = ();
     fn aggregate(_: [&Self; A]) -> Self {}
-}
-
-pub(crate) fn init_array<T, F, const N: usize>(closure: F) -> [T; N]
-where
-    F: Fn(usize) -> T,
-{
-    let mut array: [MaybeUninit<T>; N] =
-        unsafe { MaybeUninit::uninit().assume_init() };
-
-    let mut i = 0;
-    while i < N {
-        array[i].write(closure(i));
-        i += 1;
-    }
-    let array_ptr = array.as_ptr();
-
-    // SAFETY: this is safe since we initialized all the array elements prior to
-    // the read operation.
-    unsafe { ptr::read(array_ptr.cast()) }
 }
 
 /// Returns the capacity of a node at a given depth in the tree.

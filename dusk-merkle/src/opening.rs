@@ -5,12 +5,13 @@
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
 use alloc::vec::Vec;
+use core::array;
 
 use dusk_bytes::{DeserializableSlice, Error as BytesError, Serializable};
 #[cfg(feature = "rkyv-impl")]
 use rkyv::{Archive, Deserialize, Serialize};
 
-use crate::{Aggregate, Node, Tree, init_array};
+use crate::{Aggregate, Node, Tree};
 
 /// An opening for a given position in a merkle tree.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -131,7 +132,7 @@ where
 {
     pub(crate) fn new(tree: &Tree<T, H, A>, position: u64) -> Option<Self> {
         let positions = [0; H];
-        let branch = init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
+        let branch = array::from_fn(|_| array::from_fn(|_| T::EMPTY_SUBTREE));
 
         let mut opening = Self {
             root: T::EMPTY_SUBTREE,
@@ -247,7 +248,7 @@ where
 
         // deserialize branch
         let mut branch: [[T; A]; H] =
-            init_array(|_| init_array(|_| T::EMPTY_SUBTREE));
+            array::from_fn(|_| array::from_fn(|_| T::EMPTY_SUBTREE));
         for level in &mut branch {
             for item in &mut *level {
                 *item = T::from_reader(&mut bytes)?;
