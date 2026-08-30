@@ -46,16 +46,6 @@ impl Default for OpeningCircuit {
     }
 }
 
-impl OpeningCircuit {
-    /// Create a new OpeningCircuit
-    pub fn new(
-        opening: Opening<(), HEIGHT, ARITY>,
-        leaf: PoseidonItem,
-    ) -> Self {
-        Self { opening, leaf }
-    }
-}
-
 impl Circuit for OpeningCircuit {
     fn circuit(&self, composer: &mut Composer) -> Result<(), Error> {
         // append the leaf and opening gadget to the circuit
@@ -106,7 +96,7 @@ fn bench_zk(c: &mut Criterion) {
     let opening = tree.opening(pos as u64).unwrap();
     // sanity check
     assert!(opening.verify(leaf.clone()));
-    let circuit = OpeningCircuit::new(opening, leaf);
+    let circuit = OpeningCircuit { opening, leaf };
     let public_inputs = [opening.root().hash];
 
     let mut proof = Proof::default();

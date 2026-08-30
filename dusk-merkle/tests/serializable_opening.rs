@@ -68,13 +68,6 @@ impl Serializable<ITEM_SIZE> for Item {
     type Error = BytesError;
 
     fn from_bytes(buf: &[u8; ITEM_SIZE]) -> Result<Self, Self::Error> {
-        if buf.len() != ITEM_SIZE {
-            return Err(BytesError::BadLength {
-                found: (buf.len()),
-                expected: (ITEM_SIZE),
-            });
-        }
-
         let mut bytes = &buf[..];
 
         // deserialize hash

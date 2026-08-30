@@ -177,16 +177,7 @@ where
                 return false;
             }
 
-            let empty_subtree = &T::EMPTY_SUBTREE;
-
-            let mut item_refs = [empty_subtree; A];
-            item_refs.iter_mut().zip(&self.branch[h]).for_each(
-                |(r, item_ref)| {
-                    *r = item_ref;
-                },
-            );
-
-            item = T::aggregate(item_refs);
+            item = T::aggregate(level.each_ref());
         }
 
         self.root == item
