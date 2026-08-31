@@ -381,6 +381,21 @@ mod tests {
     }
 
     #[test]
+    fn opening_verify_rejects_tampered_sibling() {
+        let mut tree = TestTree::new();
+        tree.insert(0, 'A');
+
+        let mut opening = tree
+            .opening(0)
+            .expect("There must be an opening for an existing item");
+        let level = H - 1;
+        let sibling = (opening.positions[level] + 1) % A;
+        opening.branch[level][sibling] = 'B'.into();
+
+        assert!(!opening.verify('A'));
+    }
+
+    #[test]
     fn opening_verify_rejects_out_of_range_position() {
         let mut tree = TestTree::new();
         tree.insert(0, 'A');
