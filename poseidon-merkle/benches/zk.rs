@@ -8,25 +8,25 @@
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use dusk_plonk::prelude::*;
+use dusk_poseidon::{Domain, Hash};
 use poseidon_merkle::zk::opening_gadget;
 use poseidon_merkle::{Item, Opening, Tree};
 use rand::rngs::StdRng;
 use rand::{RngCore, SeedableRng};
 
-// set max circuit size to 2^13 gates
+// set max circuit size to 2^16 gates
 const CAPACITY: usize = 16;
 
-// set height and arity of the poseidon merkle tree
+// set height of the poseidon merkle tree
 const HEIGHT: usize = 17;
-const ARITY: usize = 4;
 
-type PoseidonTree = Tree<(), HEIGHT, ARITY>;
+type PoseidonTree = Tree<(), HEIGHT>;
 type PoseidonItem = Item<()>;
 
 // Create a circuit for the opening
 #[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
 struct OpeningCircuit {
-    opening: Opening<(), HEIGHT, ARITY>,
+    opening: Opening<(), HEIGHT>,
     leaf: PoseidonItem,
 }
 
@@ -78,7 +78,7 @@ fn bench_zk(c: &mut Criterion) {
     for _ in 0..100 {
         let pos = rng.next_u64() % u32::MAX as u64;
         let leaf = PoseidonItem {
-            hash: dusk_poseidon::sponge::hash(&[pos.into()]),
+            hash: Hash::digest(Domain::Other, &[pos.into()])[0],
             data: (),
         };
         tree.insert(pos, leaf);
@@ -87,15 +87,15 @@ fn bench_zk(c: &mut Criterion) {
     // insert new leaf in the tree at random position to create opening
     let pos = rng.next_u64() % u32::MAX as u64;
     let leaf = PoseidonItem {
-        hash: dusk_poseidon::sponge::hash(&[pos.into()]),
+        hash: Hash::digest(Domain::Other, &[pos.into()])[0],
         data: (),
     };
     tree.insert(pos, leaf);
 
     // create a new opening circuit for the last leaf we inserted
-    let opening = tree.opening(pos as u64).unwrap();
+    let opening = tree.opening(pos).unwrap();
     // sanity check
-    assert!(opening.verify(leaf.clone()));
+    assert!(opening.verify(leaf));
     let circuit = OpeningCircuit { opening, leaf };
     let public_inputs = [opening.root().hash];
 
