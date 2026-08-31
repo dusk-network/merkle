@@ -78,10 +78,10 @@ fn opening() {
             Hash::digest(Domain::Other, &[BlsScalar::random(&mut rng)])[0];
         position = rng.next_u64() % tree.capacity();
         leaf = PoseidonItem::new(hash, ());
-        tree.insert(position as u64, leaf);
+        tree.insert(position, leaf);
     }
-    let opening = tree.opening(position as u64).unwrap();
-    assert!(opening.verify(leaf.clone()));
+    let opening = tree.opening(position).unwrap();
+    assert!(opening.verify(leaf));
 
     let circuit = OpeningCircuit { opening, leaf };
 
