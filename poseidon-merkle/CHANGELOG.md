@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `dusk-merkle` to `v0.6.0-rc.0`
 - Update to rust stable version 1.85, edition 2024
 
+### Removed
+
+- Remove duplicate ZK example [#132]
+
 ## [0.8.0] - 2025-02-07
 
 ### Changed
@@ -88,6 +92,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 <!-- ISSUES -->
 [#133]: https://github.com/dusk-network/merkle/issues/133
+[#132]: https://github.com/dusk-network/merkle/issues/132
 [#129]: https://github.com/dusk-network/merkle/issues/129
 [#127]: https://github.com/dusk-network/merkle/issues/127
 [#85]: https://github.com/dusk-network/merkle/issues/85
