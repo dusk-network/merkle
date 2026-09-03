@@ -112,6 +112,7 @@ pub type Opening<T, const H: usize> = dusk_merkle::Opening<Item<T>, H, ARITY>;
     derive(rkyv::Archive, rkyv::Serialize, rkyv::Deserialize),
     archive_attr(derive(bytecheck::CheckBytes))
 )]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Item<T> {
     pub hash: BlsScalar,
     pub data: T,
@@ -161,5 +162,27 @@ impl Serializable<32> for Item<()> {
 
     fn to_bytes(&self) -> [u8; 32] {
         self.hash.to_bytes()
+    }
+}
+
+#[cfg(all(test, feature = "serde"))]
+mod serde_tests {
+    use super::*;
+
+    #[test]
+    fn opening_roundtrips_and_verifies() {
+        const H: usize = 4;
+        let leaf = Item::new(BlsScalar::from(7u64), ());
+        let mut tree = Tree::<(), H>::new();
+        tree.insert(0, leaf);
+        let opening = tree.opening(0).expect("the leaf has an opening");
+
+        let json = serde_json::to_string(&opening)
+            .expect("serializing should succeed");
+        let decoded: Opening<(), H> =
+            serde_json::from_str(&json).expect("deserializing should succeed");
+
+        assert_eq!(opening, decoded);
+        assert!(decoded.verify(leaf));
     }
 }

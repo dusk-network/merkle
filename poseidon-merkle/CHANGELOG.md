@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional `serde` support for `Item` and `Opening` [#115]
+
 ### Fixed
 
 - Restore the ZK benchmark and include benchmarks in Clippy checks [#137]
@@ -95,6 +99,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add poseidon-merkle crate [#58]
 
 <!-- ISSUES -->
+[#115]: https://github.com/dusk-network/merkle/issues/115
 [#137]: https://github.com/dusk-network/merkle/issues/137
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#132]: https://github.com/dusk-network/merkle/issues/132
