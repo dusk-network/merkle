@@ -47,6 +47,7 @@ Tests use `--release` because `poseidon-merkle` depends on `dusk-plonk` (via the
 | Feature    | Description                                    | Default |
 |------------|------------------------------------------------|---------|
 | `rkyv-impl`| rkyv serialization with validation and alloc  | No      |
+| `serde`    | Serde support for openings                    | No      |
 | `size_16`  | rkyv 16-bit pointer size (mutually exclusive) | No      |
 | `size_32`  | rkyv 32-bit pointer size (mutually exclusive) | No      |
 | `size_64`  | rkyv 64-bit pointer size (mutually exclusive) | No      |
@@ -57,6 +58,7 @@ Tests use `--release` because `poseidon-merkle` depends on `dusk-plonk` (via the
 |------------|------------------------------------------------|---------|
 | `zk`       | PLONK circuit support via `dusk-plonk`        | No      |
 | `rkyv-impl`| rkyv serialization (enables on bls12_381 and dusk-merkle too) | No |
+| `serde`    | Serde support for items and openings          | No      |
 | `size_16`  | rkyv 16-bit pointer size (mutually exclusive) | No      |
 | `size_32`  | rkyv 32-bit pointer size (mutually exclusive) | No      |
 | `size_64`  | rkyv 64-bit pointer size (mutually exclusive) | No      |
