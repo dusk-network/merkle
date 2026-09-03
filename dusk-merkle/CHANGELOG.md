@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Optional `serde` feature with hand-written `Serialize`/`Deserialize` for `Opening` [#115]
+
 ### Changed
 
 - Replace custom unsafe array initialization with `core::array::from_fn` [#131]
@@ -127,6 +131,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#115]: https://github.com/dusk-network/merkle/issues/115
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#131]: https://github.com/dusk-network/merkle/issues/131
 [#129]: https://github.com/dusk-network/merkle/issues/129
