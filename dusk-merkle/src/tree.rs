@@ -7,7 +7,7 @@
 use alloc::collections::BTreeSet;
 use core::cell::Ref;
 
-use crate::{Aggregate, Node, Opening, Walk, capacity};
+use crate::{Aggregate, Node, Opening, Walk, capacity, checked_capacity};
 
 /// A sparse Merkle tree.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,8 +34,25 @@ where
     T: Aggregate<A>,
 {
     /// Create a new merkle tree with the given initial `root`.
+    ///
+    /// A zero height, an arity below 2, or a capacity `A^H` that does not fit
+    /// a `u64`, fails to compile:
+    ///
+    /// ```compile_fail
+    /// let tree = dusk_merkle::Tree::<(), 41, 3>::new();
+    /// ```
+    ///
+    /// ```compile_fail
+    /// let tree = dusk_merkle::Tree::<(), 17, 1>::new();
+    /// ```
     #[must_use]
     pub const fn new() -> Self {
+        const {
+            assert!(
+                checked_capacity(A, H).is_some(),
+                "tree height must be nonzero, arity at least 2, and capacity fit in u64"
+            );
+        }
         Self {
             root: Node::new(),
             positions: BTreeSet::new(),
@@ -173,7 +190,7 @@ mod rkyv_impl {
     use rkyv::{Archive, Archived};
 
     use super::ArchivedTree;
-    use crate::Node;
+    use crate::{Node, checked_capacity};
 
     #[derive(Debug)]
     struct ArchiveInvariantError(&'static str);
@@ -198,16 +215,6 @@ mod rkyv_impl {
 
     fn invariant_error(message: &'static str) -> StructCheckError {
         field_error("positions", ArchiveInvariantError(message))
-    }
-
-    fn checked_capacity<const H: usize, const A: usize>() -> Option<u64> {
-        if H == 0 || A == 0 {
-            return None;
-        }
-
-        let arity = u64::try_from(A).ok()?;
-        let height = u32::try_from(H).ok()?;
-        arity.checked_pow(height)
     }
 
     // The linear leaf-position match relies on `BTreeSet` iteration yielding
@@ -283,9 +290,9 @@ mod rkyv_impl {
     where
         T: Archive,
     {
-        let capacity = checked_capacity::<H, A>().ok_or_else(|| {
+        let capacity = checked_capacity(A, H).ok_or_else(|| {
             invariant_error(
-                "tree height and arity must be nonzero and fit in u64 capacity",
+                "tree height must be nonzero, arity at least 2, and capacity fit in u64",
             )
         })?;
 

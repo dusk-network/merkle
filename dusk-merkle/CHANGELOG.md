@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Reject an arity of 1 in `Tree::new` at compile time and in checked RKYV deserialization [#144]
 - Replace custom unsafe array initialization with `core::array::from_fn` [#131]
 - Simplify opening verification with native array references [#133]
 - Raise the MSRV to Rust 1.96.1 [#127]
@@ -16,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Reject a zero height or arity, or a capacity above `u64::MAX`, in `Tree::new` at compile time [#144]
 - Return `None` when recorded tree positions have missing paths [#110]
 - Reject archived openings with out-of-range positions during checked RKYV deserialization [#121]
 - Return `false` when an opening contains an out-of-range position [#109]
@@ -125,6 +127,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#144]: https://github.com/dusk-network/merkle/issues/144
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#131]: https://github.com/dusk-network/merkle/issues/131
 [#127]: https://github.com/dusk-network/merkle/issues/127
