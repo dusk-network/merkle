@@ -38,7 +38,12 @@ impl Aggregate<A> for Item {
 
     fn aggregate(items: [&Self; A]) -> Self {
         let mut bh_range = None;
-        let mut rng = StdRng::seed_from_u64(0xbeef);
+        let mut bytes = [0u8; A * ITEM_SIZE];
+
+        let (chunks, _) = bytes.as_chunks_mut::<ITEM_SIZE>();
+        for (chunk, item) in chunks.iter_mut().zip(items) {
+            *chunk = item.to_bytes();
+        }
 
         for item in items {
             bh_range = match (bh_range, item.bh_range.as_ref()) {
@@ -54,7 +59,7 @@ impl Aggregate<A> for Item {
         }
 
         Self {
-            hash: BlsScalar::random(&mut rng),
+            hash: BlsScalar::hash_to_scalar(&bytes),
             bh_range,
         }
     }
@@ -149,6 +154,26 @@ fn serialize_deserialize() {
 
     assert!(deserialized.verify(leaf));
     assert_eq!(opening, deserialized);
+
+    // A sibling with a different hash must break the opening, so the
+    // aggregate has to depend on the branch hashes.
+    let level = H - 1;
+    let sibling = (opening.positions()[level] + 1) % A;
+    let mut tampered_item = opening.branch()[level][sibling];
+    tampered_item.hash += BlsScalar::one();
+
+    let offset = (1 + level * A + sibling) * ITEM_SIZE;
+    let mut tampered_bytes = serialized;
+    tampered_bytes[offset..offset + ITEM_SIZE]
+        .copy_from_slice(&tampered_item.to_bytes());
+    let tampered = Opening::<Item, H, A>::from_slice(&tampered_bytes).unwrap();
+
+    let mut branch = *opening.branch();
+    branch[level][sibling] = tampered_item;
+    assert_eq!(tampered.branch(), &branch, "The sibling should be tampered");
+    assert_eq!(tampered.root(), opening.root());
+    assert_eq!(tampered.positions(), opening.positions());
+    assert!(!tampered.verify(leaf), "A tampered sibling should fail");
 }
 
 #[test]

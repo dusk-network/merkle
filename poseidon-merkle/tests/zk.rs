@@ -62,6 +62,9 @@ impl Circuit for OpeningCircuit {
     }
 }
 
+// The offsets follow the byte layout of `Opening::to_var_bytes`. The callers
+// check the result through the accessors, so a change of that layout fails
+// the test instead of tampering with a different item.
 fn tamper_hash(
     opening: &Opening<(), HEIGHT>,
     item_index: usize,
@@ -75,12 +78,29 @@ fn tamper_hash(
         .expect("Tampered hash should remain canonical")
 }
 
+fn tamper_root(opening: &Opening<(), HEIGHT>) -> Opening<(), HEIGHT> {
+    let hash = opening.root().hash + BlsScalar::one();
+    let tampered = tamper_hash(opening, 0, hash);
+
+    assert_eq!(tampered.root().hash, hash, "The root should be tampered");
+    assert_eq!(tampered.branch(), opening.branch());
+    assert_eq!(tampered.positions(), opening.positions());
+    tampered
+}
+
 fn tamper_sibling(opening: &Opening<(), HEIGHT>) -> Opening<(), HEIGHT> {
     let level = HEIGHT - 1;
     let sibling = (opening.positions()[level] + 1) % ARITY;
     let item_index = 1 + level * ARITY + sibling;
     let hash = opening.branch()[level][sibling].hash + BlsScalar::one();
-    tamper_hash(opening, item_index, hash)
+    let tampered = tamper_hash(opening, item_index, hash);
+
+    let mut branch = *opening.branch();
+    branch[level][sibling].hash = hash;
+    assert_eq!(tampered.branch(), &branch, "The sibling should be tampered");
+    assert_eq!(tampered.root(), opening.root());
+    assert_eq!(tampered.positions(), opening.positions());
+    tampered
 }
 
 fn assert_rejected(
@@ -130,9 +150,23 @@ fn opening_gadget_accepts_valid_and_rejects_tampering() {
         .prove(&mut rng, &circuit)
         .expect("Proof generation should succeed");
 
+    // The root is the only public input, so the verifier checks the proof
+    // against the root and not against a value the prover picks.
+    let root = opening.root().hash;
+    assert_eq!(public_inputs, [root], "The root should be the public input");
+
     verifier
-        .verify(&proof, &public_inputs)
+        .verify(&proof, &[root])
         .expect("Proof verification should succeed");
+
+    let tampered_root = tamper_root(&opening);
+    assert!(
+        matches!(
+            verifier.verify(&proof, &[tampered_root.root().hash]),
+            Err(Error::ProofVerificationError)
+        ),
+        "The proof should not verify against a tampered root"
+    );
 
     let wrong_leaf = PoseidonItem::new(leaf.hash + BlsScalar::one(), ());
     assert_rejected(&prover, &mut rng, opening, wrong_leaf, "Wrong leaf");
@@ -146,7 +180,5 @@ fn opening_gadget_accepts_valid_and_rejects_tampering() {
         "Tampered sibling",
     );
 
-    let tampered_root =
-        tamper_hash(&opening, 0, opening.root().hash + BlsScalar::one());
     assert_rejected(&prover, &mut rng, tampered_root, leaf, "Tampered root");
 }

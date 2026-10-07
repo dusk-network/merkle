@@ -640,15 +640,15 @@ mod tests {
             let tree_bytes = archive(tree);
             let result = catch_unwind(AssertUnwindSafe(|| {
                 rkyv::from_bytes::<SumTree>(&tree_bytes)
-            }));
+            }))
+            .unwrap_or_else(|_| panic!("{case}: archive rejection unwound"));
 
             match result {
-                Ok(Err(error)) => assert!(
+                Err(error) => assert!(
                     error.to_string().contains(expected_error),
                     "{case}: expected error containing {expected_error:?}, got {error}"
                 ),
-                Ok(Ok(_)) => panic!("{case}: malformed archive was accepted"),
-                Err(_) => panic!("{case}: archive rejection unwound"),
+                Ok(_) => panic!("{case}: malformed archive was accepted"),
             }
         }
 
@@ -662,16 +662,18 @@ mod tests {
             let tree_bytes = archive(tree);
             let result = catch_unwind(AssertUnwindSafe(|| {
                 rkyv::from_bytes::<SumTree>(&tree_bytes)
-            }));
+            }))
+            .unwrap_or_else(|_| {
+                panic!("{case}: checked deserialization unwound")
+            });
 
             match result {
-                Ok(Ok(tree)) => tree,
-                Ok(Err(error)) => {
+                Ok(tree) => tree,
+                Err(error) => {
                     panic!(
                         "{case}: structurally valid archive was rejected: {error}"
                     )
                 }
-                Err(_) => panic!("{case}: checked deserialization unwound"),
             }
         }
 

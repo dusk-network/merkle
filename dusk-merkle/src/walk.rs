@@ -175,7 +175,7 @@ mod tests {
 
         assert!(matches!(walk.next(), Some(x) if x.0 == 8));
         assert!(matches!(walk.next(), Some(x) if x.0 == 16));
-        assert!(matches!(walk.next(), None));
+        assert!(walk.next().is_none());
     }
 
     #[test]
@@ -188,7 +188,7 @@ mod tests {
         let mut walk = tree.walk(is_larger_than);
 
         assert!(matches!(walk.next(), Some(x) if x.0 == 8));
-        assert!(matches!(walk.next(), None));
+        assert!(walk.next().is_none());
     }
 
     #[test]
@@ -208,13 +208,13 @@ mod tests {
         assert!(matches!(walk.next(), Some(x) if x.0 == 25));
         assert!(matches!(walk.next(), Some(x) if x.0 == 8));
         assert!(matches!(walk.next(), Some(x) if x.0 == 25));
-        assert!(matches!(walk.next(), None));
+        assert!(walk.next().is_none());
     }
 
     #[test]
     fn empty_tree() {
         let tree = SmallTree::new();
         let mut walk = tree.walk(is_larger_than);
-        assert!(matches!(walk.next(), None));
+        assert!(walk.next().is_none());
     }
 }

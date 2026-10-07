@@ -4,7 +4,7 @@
 //
 // Copyright (c) DUSK NETWORK. All rights reserved.
 
-// to be able to use this module, the "poseidon" feature needs to be in scope
+// to be able to use this module, the "zk" feature needs to be in scope
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use dusk_plonk::prelude::*;

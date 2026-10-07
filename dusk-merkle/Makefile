@@ -10,7 +10,7 @@ no-std: ## Verify no_std compatibility on bare-metal target
 	@cargo build --release -p dusk-merkle --no-default-features --target thumbv6m-none-eabi
 
 clippy: ## Run clippy
-	@cargo clippy -p dusk-merkle --features=rkyv-impl,size_32 -- -D warnings
-	@cargo clippy -p dusk-merkle --no-default-features -- -D warnings
+	@cargo clippy -p dusk-merkle --all-targets --features=rkyv-impl,size_32 -- -D warnings
+	@cargo clippy -p dusk-merkle --all-targets --no-default-features -- -D warnings
 
 .PHONY: help test no-std clippy

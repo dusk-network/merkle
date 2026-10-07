@@ -307,9 +307,10 @@ where
 mod tests {
     use super::*;
 
-    const H: usize = 4;
+    const HEIGHT: u32 = 4;
+    const H: usize = HEIGHT as usize;
     const A: usize = 2;
-    const TREE_CAP: usize = A.pow(H as u32);
+    const TREE_CAP: usize = A.pow(HEIGHT);
 
     /// A string type that is on the stack, and holds a string of a size as
     /// large as the tree.
@@ -433,9 +434,10 @@ mod tests {
                 .expect("the unmodified opening is valid");
             let position = archived.positions.as_ptr().wrapping_add(index);
 
-            // SAFETY: Both pointers refer to the same archive allocation.
+            // SAFETY: Both pointers refer to the same archive allocation, and
+            // the position does not come before the start of the archive.
             unsafe {
-                position.cast::<u8>().offset_from(bytes.as_ptr()) as usize
+                position.cast::<u8>().offset_from_unsigned(bytes.as_ptr())
             }
         }
 
@@ -445,16 +447,16 @@ mod tests {
             position: rkyv::FixedUsize,
         ) {
             let offset = position_offset(bytes, index);
-            let archived_position: Archived<usize> = position.into();
+            let archived_position: Archived<usize> = position;
 
-            // SAFETY: The offset was obtained from this aligned archive's
-            // positions array, and `archived_position` has the field's type.
+            // SAFETY: The offset was obtained from this archive's positions
+            // array, and `archived_position` has the field's type.
             unsafe {
                 bytes
                     .as_mut_ptr()
                     .add(offset)
                     .cast::<Archived<usize>>()
-                    .write(archived_position);
+                    .write_unaligned(archived_position);
             }
         }
 
@@ -489,14 +491,12 @@ mod tests {
 
             // Include a value whose lower half is zero so narrowing to a
             // smaller host `usize` cannot accidentally make it valid.
-            let high_bits_only =
-                (1u128 << (rkyv::FixedUsize::BITS / 2)) as rkyv::FixedUsize;
-            let invalid_positions = [
-                A as rkyv::FixedUsize,
-                (A + 1) as rkyv::FixedUsize,
-                high_bits_only,
-                rkyv::FixedUsize::MAX,
-            ];
+            let high_bits_only: rkyv::FixedUsize =
+                1 << (rkyv::FixedUsize::BITS / 2);
+            let arity = rkyv::FixedUsize::try_from(A)
+                .expect("the arity should fit in an archived usize");
+            let invalid_positions =
+                [arity, arity + 1, high_bits_only, rkyv::FixedUsize::MAX];
             for index in 0..H {
                 for position in invalid_positions {
                     let mut malformed = bytes.clone();
