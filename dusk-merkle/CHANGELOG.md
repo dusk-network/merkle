@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bound recursion in checked RKYV deserialization of archived trees by the tree height [#123]
 - Reject a zero height or arity, or a capacity above `u64::MAX`, in `Tree::new` at compile time [#144]
 - Return `None` when recorded tree positions have missing paths [#110]
 - Reject archived openings with out-of-range positions during checked RKYV deserialization [#121]
@@ -127,6 +128,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#123]: https://github.com/dusk-network/merkle/issues/123
 [#144]: https://github.com/dusk-network/merkle/issues/144
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#131]: https://github.com/dusk-network/merkle/issues/131

@@ -232,11 +232,6 @@ mod rkyv_impl {
         I: Iterator<Item = u64>,
     {
         if height == H {
-            if node.has_children() {
-                return Err(ArchiveInvariantError(
-                    "an archived node extends below the tree height",
-                ));
-            }
             if !node.has_item() {
                 return Err(ArchiveInvariantError(
                     "an archived leaf has no item",
@@ -286,16 +281,11 @@ mod rkyv_impl {
 
     fn validate_archive<T, const H: usize, const A: usize>(
         tree: &ArchivedTree<T, H, A>,
+        capacity: u64,
     ) -> Result<(), StructCheckError>
     where
         T: Archive,
     {
-        let capacity = checked_capacity(A, H).ok_or_else(|| {
-            invariant_error(
-                "tree height must be nonzero, arity at least 2, and capacity fit in u64",
-            )
-        })?;
-
         if tree.positions.iter().any(|position| *position >= capacity) {
             return Err(invariant_error(
                 "an archived position is outside the tree capacity",
@@ -334,6 +324,14 @@ mod rkyv_impl {
             value: *const Self,
             context: &mut C,
         ) -> Result<&'a Self, Self::Error> {
+            // Reject an invalid shape before walking any node: the node check
+            // recurses up to `H` levels, and only a valid shape bounds `H`.
+            let capacity = checked_capacity(A, H).ok_or_else(|| {
+                invariant_error(
+                    "tree height must be nonzero, arity at least 2, and capacity fit in u64",
+                )
+            })?;
+
             // SAFETY: The caller guarantees that `value` is aligned and points
             // to enough bytes for `Self`; each field validator checks its own
             // archived representation and referenced data.
@@ -363,7 +361,7 @@ mod rkyv_impl {
                 root: _,
                 positions: _,
             } = tree;
-            validate_archive(tree)?;
+            validate_archive(tree, capacity)?;
             Ok(tree)
         }
     }
@@ -624,12 +622,16 @@ mod tests {
         extern crate std;
 
         use alloc::boxed::Box;
-        use alloc::string::ToString;
+        use alloc::string::{String, ToString};
         use alloc::vec::Vec;
         use std::panic::{AssertUnwindSafe, catch_unwind};
+        use std::process::Command;
+        use std::{env, thread};
+
+        use rkyv::{AlignedVec, Archived};
 
         use super::{A, H, SumTree};
-        use crate::{Aggregate, Node, Opening};
+        use crate::{Aggregate, Node, Opening, Tree};
 
         const POSITION: u64 = 5;
 
@@ -813,11 +815,145 @@ mod tests {
             let leaf = node_at_height_mut(&mut tree, H, POSITION);
             leaf.children[0] = Some(Box::new(Node::new()));
 
+            // The structural check of the nodes rejects it on its own.
+            let nodes = rkyv::to_bytes::<_, 128>(&tree.root)
+                .expect("Archiving a node should succeed");
+            assert!(
+                rkyv::check_archived_root::<Node<u8, H, A>>(&nodes).is_err_and(
+                    |error| error
+                        .to_string()
+                        .contains("an archived path exceeds the tree height")
+                )
+            );
+
             assert_rejected_without_unwind(
                 "node below tree height",
                 &tree,
-                "an archived node extends below the tree height",
+                "an archived path exceeds the tree height",
             );
+        }
+
+        #[test]
+        fn full_tree_round_trip() {
+            let mut tree = SumTree::new();
+            for position in 0..tree.capacity() {
+                tree.insert(position, 1);
+            }
+            assert_eq!(*tree.root(), 8);
+
+            assert_eq!(decode_without_unwind("full tree", &tree), tree);
+        }
+
+        // Archives a tree whose root has a chain of `depth >= 2` item-less
+        // nodes below it, without recursing through the chain.
+        fn archive_chain(depth: usize) -> AlignedVec {
+            let mut node = Node::new();
+            node.children[0] = Some(Box::new(Node::new()));
+            let mut tree = SumTree::new();
+            tree.root.children[0] = Some(Box::new(node));
+            let bytes = archive(&tree);
+
+            // Nodes archive bottom-up: the end of the chain, the node above
+            // it, then the tree. Each node's relative pointer targets the
+            // node archived right before it, so repeating the node above the
+            // end deepens the chain. The tree's pointer to the chain moves
+            // with it, and the empty position set has no data to point to.
+            let size = size_of::<Archived<Node<u8, H, A>>>();
+            let (end, rest) = bytes.split_at(size);
+            let mut chain = AlignedVec::new();
+            chain.extend_from_slice(end);
+            for _ in 2..depth {
+                chain.extend_from_slice(&rest[..size]);
+            }
+            chain.extend_from_slice(rest);
+            chain
+        }
+
+        const DEEP_ARCHIVE_CHILD: &str = "DUSK_MERKLE_DEEP_ARCHIVE_CHILD";
+
+        // Decodes a chain of `1 << 16` nodes as a tree of `HEIGHT` on a 64 KiB
+        // stack and returns the error. Unbounded, the check would take at
+        // least a return address per level, 512 KiB for this chain.
+        fn deep_chain_rejection<const HEIGHT: usize>() -> String {
+            let chain = archive_chain(1 << 16);
+            thread::Builder::new()
+                .stack_size(64 << 10)
+                .spawn(move || {
+                    rkyv::from_bytes::<Tree<u8, HEIGHT, A>>(&chain)
+                        .map(drop)
+                        .map_err(|error| error.to_string())
+                })
+                .expect("Spawning a thread should succeed")
+                .join()
+                .expect("Decoding a deep archive should not panic")
+                .expect_err("A deep archive must be rejected")
+        }
+
+        // A stack overflow aborts the process, so a test decodes in a child
+        // that runs only `test`, with `DEEP_ARCHIVE_CHILD` set.
+        fn assert_passes_in_a_child(test: &str) {
+            let (_, test) = test.split_once("::").expect("A crate path");
+            let output = Command::new(
+                env::current_exe().expect("The test binary should exist"),
+            )
+            .args([test, "--exact"])
+            .env(DEEP_ARCHIVE_CHILD, "1")
+            .output()
+            .expect("Running the test binary should succeed");
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                output.status.success() && stdout.contains(" 1 passed"),
+                "the child test failed: {}\n{stdout}{}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr),
+            );
+        }
+
+        #[test]
+        fn deep_archive_is_rejected_on_a_small_stack() {
+            if env::var_os(DEEP_ARCHIVE_CHILD).is_some() {
+                let error = deep_chain_rejection::<H>();
+                assert!(
+                    error.contains("an archived path exceeds the tree height"),
+                    "{error}"
+                );
+                return;
+            }
+
+            // A chain down to the tree height passes the structural check.
+            let error = rkyv::from_bytes::<SumTree>(&archive_chain(H))
+                .expect_err("A chain without a leaf item must be rejected");
+            assert!(
+                error.to_string().contains("an archived leaf has no item"),
+                "{error}"
+            );
+
+            assert_passes_in_a_child(concat!(
+                module_path!(),
+                "::deep_archive_is_rejected_on_a_small_stack"
+            ));
+        }
+
+        #[test]
+        fn deep_archive_of_an_invalid_shape_is_rejected_on_a_small_stack() {
+            if env::var_os(DEEP_ARCHIVE_CHILD).is_some() {
+                // Within this height, the node check would walk the whole
+                // chain, so the shape must be rejected first.
+                let error = deep_chain_rejection::<1_000_000>();
+                assert!(
+                    error.contains(
+                        "tree height must be nonzero, arity at least 2, and capacity fit in u64"
+                    ),
+                    "{error}"
+                );
+                return;
+            }
+
+            assert_passes_in_a_child(concat!(
+                module_path!(),
+                "::deep_archive_of_an_invalid_shape_is_rejected_on_a_small_stack"
+            ));
         }
 
         #[test]

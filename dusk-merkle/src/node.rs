@@ -146,33 +146,180 @@ where
     }
 }
 
-// Allow `unsafe_op_in_unsafe_fn` because the `CheckBytes` derive macro from
-// bytecheck 0.6 generates unsafe operations without `unsafe {}` blocks, which
-// is not edition-2024-compliant.
 #[cfg(feature = "rkyv-impl")]
-#[allow(unsafe_op_in_unsafe_fn)]
 mod rkyv_impl {
     use alloc::boxed::Box;
     use core::cell::RefCell;
+    use core::{fmt, ptr};
 
-    use bytecheck::CheckBytes;
-    use rkyv::option::ArchivedOption;
+    use bytecheck::{
+        ArrayCheckError, CheckBytes, EnumCheckError, ErrorBox,
+        StructCheckError, TupleStructCheckError,
+    };
     use rkyv::ser::Serializer;
+    use rkyv::validation::ArchiveContext;
     use rkyv::{
-        Archive, Archived, Deserialize, Fallible, Resolver, Serialize,
+        Archive, Archived, Deserialize, Fallible, RelPtr, Resolver, Serialize,
         out_field,
     };
 
     use super::Node;
 
-    #[derive(CheckBytes)]
-    #[check_bytes(
-        bound = "__C: rkyv::validation::ArchiveContext, <__C as rkyv::Fallible>::Error: bytecheck::Error"
-    )]
     pub struct ArchivedNode<T: Archive, const H: usize, const A: usize> {
         item: Archived<Option<T>>,
-        #[omit_bounds]
         children: Archived<[Option<Box<Node<T, H, A>>>; A]>,
+    }
+
+    // The tags of the `#[repr(u8)]` `ArchivedOption`, and its layout when it
+    // holds `Some`, as rkyv writes it and the bytecheck derive reads it.
+    const NONE: u8 = 0;
+    const SOME: u8 = 1;
+
+    #[repr(C)]
+    struct ArchivedSome<T>(u8, T);
+
+    #[derive(Debug)]
+    struct HeightExceeded;
+
+    impl fmt::Display for HeightExceeded {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.write_str("an archived path exceeds the tree height")
+        }
+    }
+
+    impl core::error::Error for HeightExceeded {}
+
+    fn field_error(
+        field_name: &'static str,
+        error: impl bytecheck::Error,
+    ) -> StructCheckError {
+        StructCheckError {
+            field_name,
+            inner: ErrorBox::new(error),
+        }
+    }
+
+    fn some_error(error: impl bytecheck::Error) -> EnumCheckError<u8> {
+        EnumCheckError::InvalidTuple {
+            variant_name: "Some",
+            inner: TupleStructCheckError {
+                field_index: 0,
+                inner: ErrorBox::new(error),
+            },
+        }
+    }
+
+    // A derived check would recurse through `ArchivedOption` and `ArchivedBox`
+    // without a depth limit. This one makes the same checks, with the same
+    // error messages, but tracks the depth below the root and rejects children
+    // of nodes at depth `H`, so it recurses at most `H` levels.
+    impl<C, T, const H: usize, const A: usize> CheckBytes<C>
+        for ArchivedNode<T, H, A>
+    where
+        C: ArchiveContext + ?Sized,
+        C::Error: bytecheck::Error,
+        T: Archive,
+        Archived<Option<T>>: CheckBytes<C>,
+    {
+        type Error = StructCheckError;
+
+        unsafe fn check_bytes<'a>(
+            value: *const Self,
+            context: &mut C,
+        ) -> Result<&'a Self, Self::Error> {
+            // SAFETY: The caller guarantees that `value` is aligned and points
+            // to enough bytes for `Self`.
+            unsafe { Self::check_at_depth(value, context, 0) }?;
+
+            // SAFETY: The node and all nodes below it were validated above.
+            let node = unsafe { &*value };
+            let Self {
+                item: _,
+                children: _,
+            } = node;
+            Ok(node)
+        }
+    }
+
+    impl<T: Archive, const H: usize, const A: usize> ArchivedNode<T, H, A> {
+        // Checks a node `depth` levels below the root. `value` must be aligned
+        // and point to enough bytes for `Self`.
+        unsafe fn check_at_depth<C>(
+            value: *const Self,
+            context: &mut C,
+            depth: usize,
+        ) -> Result<(), StructCheckError>
+        where
+            C: ArchiveContext + ?Sized,
+            C::Error: bytecheck::Error,
+            Archived<Option<T>>: CheckBytes<C>,
+        {
+            // SAFETY: The caller guarantees that `value` is aligned and points
+            // to enough bytes for `Self`, so each field pointer is aligned and
+            // points to enough bytes for its field.
+            unsafe {
+                Archived::<Option<T>>::check_bytes(
+                    ptr::addr_of!((*value).item),
+                    context,
+                )
+            }
+            .map_err(|error| field_error("item", error))?;
+
+            for index in 0..A {
+                // SAFETY: As above.
+                let slot = unsafe { ptr::addr_of!((*value).children[index]) };
+                let result = unsafe { Self::check_child(slot, context, depth) };
+                result.map_err(|error| {
+                    field_error("children", ArrayCheckError { index, error })
+                })?;
+            }
+
+            Ok(())
+        }
+
+        // Checks a child slot of a node `depth` levels below the root like
+        // `ArchivedOption` and `ArchivedBox` would, but recurses with the
+        // child's depth. `slot` must be aligned and point to enough bytes for
+        // the slot.
+        unsafe fn check_child<C>(
+            slot: *const Archived<Option<Box<Node<T, H, A>>>>,
+            context: &mut C,
+            depth: usize,
+        ) -> Result<(), EnumCheckError<u8>>
+        where
+            C: ArchiveContext + ?Sized,
+            C::Error: bytecheck::Error,
+            Archived<Option<T>>: CheckBytes<C>,
+        {
+            // SAFETY: The tag of a `#[repr(u8)]` enum is its first byte.
+            match unsafe { *slot.cast::<u8>() } {
+                NONE => return Ok(()),
+                SOME if depth < H => {}
+                SOME => return Err(some_error(HeightExceeded)),
+                tag => return Err(EnumCheckError::InvalidTag(tag)),
+            }
+
+            // SAFETY: A `Some` slot is laid out as `ArchivedSome`, holding an
+            // `ArchivedBox`, which is a transparent `RelPtr`, in the archive.
+            // Like `ArchivedBox::check_bytes`, this checks that the child lies
+            // aligned and whole in the unclaimed subtree range, then claims the
+            // child, so no other pointer can reach it or the nodes below it.
+            unsafe {
+                let slot = slot.cast::<ArchivedSome<RelPtr<Self>>>();
+                let Ok(rel_ptr) = RelPtr::manual_check_bytes(
+                    ptr::addr_of!((*slot).1),
+                    context,
+                );
+                let child = context
+                    .check_subtree_rel_ptr(rel_ptr)
+                    .map_err(some_error)?;
+                let range =
+                    context.push_prefix_subtree(child).map_err(some_error)?;
+                Self::check_at_depth(child, context, depth + 1)
+                    .map_err(some_error)?;
+                context.pop_prefix_range(range).map_err(some_error)
+            }
+        }
     }
 
     pub struct NodeResolver<T: Archive, const H: usize, const A: usize> {
@@ -187,10 +334,6 @@ mod rkyv_impl {
 
         pub(crate) fn child(&self, index: usize) -> Option<&Self> {
             self.children.get(index)?.as_deref()
-        }
-
-        pub(crate) fn has_children(&self) -> bool {
-            self.children.iter().any(ArchivedOption::is_some)
         }
     }
 
@@ -262,6 +405,113 @@ mod rkyv_impl {
                 item: RefCell::new(item),
                 children,
             })
+        }
+    }
+
+    // The serializer only writes valid tags and pointers, so these tests
+    // corrupt a serialized archive to reach the checks of `check_child`.
+    #[cfg(test)]
+    mod tests {
+        use alloc::string::{String, ToString};
+        use core::{array, ptr};
+
+        use rkyv::option::ArchivedOption;
+        use rkyv::{AlignedVec, RelPtr};
+
+        use super::ArchivedNode;
+        use crate::Node;
+
+        const H: usize = 2;
+        const A: usize = 2;
+
+        type TestNode = Node<(), H, A>;
+        type TestArchivedNode = ArchivedNode<(), H, A>;
+
+        // The positions in an archive of a child slot of the root, of the
+        // relative pointer in it, and of the child it points to.
+        struct Child {
+            slot: usize,
+            rel_ptr: usize,
+            target: usize,
+        }
+
+        fn position<T>(bytes: &[u8], value: &T) -> usize {
+            ptr::from_ref(value).addr() - bytes.as_ptr().addr()
+        }
+
+        // Archives a root with two populated children and checks that the
+        // unmodified archive validates, so each test's change is the only
+        // reason for its rejection.
+        fn archive() -> (AlignedVec, [Child; A]) {
+            let mut root = TestNode::new();
+            root.insert(0, 0, ());
+            root.insert(0, 2, ());
+            let bytes = rkyv::to_bytes::<_, 128>(&root)
+                .expect("Archiving a node should succeed");
+
+            let archived = rkyv::check_archived_root::<TestNode>(&bytes)
+                .expect("The unmodified archive should validate");
+            let children = array::from_fn(|index| {
+                let slot = &archived.children[index];
+                let ArchivedOption::Some(child) = slot else {
+                    panic!("The root should have child {index}");
+                };
+                // An `ArchivedBox` is a transparent `RelPtr`.
+                Child {
+                    slot: position(&bytes, slot),
+                    rel_ptr: position(&bytes, child),
+                    target: position(&bytes, child.get()),
+                }
+            });
+            (bytes, children)
+        }
+
+        // Points the relative pointer at position `rel_ptr` to `target`.
+        fn redirect(bytes: &mut AlignedVec, rel_ptr: usize, target: usize) {
+            let out = bytes[rel_ptr..].as_mut_ptr().cast();
+            // SAFETY: `out` points to the aligned relative pointer at
+            // `rel_ptr` in `bytes`, and `emplace` only writes its offset.
+            unsafe {
+                RelPtr::<TestArchivedNode>::emplace(rel_ptr, target, out);
+            }
+        }
+
+        fn rejection(bytes: &[u8]) -> String {
+            rkyv::check_archived_root::<TestNode>(bytes)
+                .map(drop)
+                .expect_err("The modified archive must be rejected")
+                .to_string()
+        }
+
+        #[test]
+        fn child_with_invalid_tag_is_rejected() {
+            let (mut bytes, [child, _]) = archive();
+            // The tag of a `#[repr(u8)]` enum is its first byte.
+            bytes[child.slot] = 2;
+
+            let error = rejection(&bytes);
+            assert!(error.contains("invalid tag for enum: 2"), "{error}");
+        }
+
+        #[test]
+        fn child_pointer_past_the_buffer_is_rejected() {
+            let (mut bytes, [child, _]) = archive();
+            let past_end = bytes.len() + size_of::<TestArchivedNode>();
+            redirect(&mut bytes, child.rel_ptr, past_end);
+
+            let error = rejection(&bytes);
+            assert!(error.contains("pointer out of bounds: base"), "{error}");
+        }
+
+        #[test]
+        fn second_child_pointer_to_the_first_child_is_rejected() {
+            let (mut bytes, [first, second]) = archive();
+            // Give the second slot the first slot's offset, less the distance
+            // between the slots, so that both point to the first child.
+            redirect(&mut bytes, second.rel_ptr, first.target);
+
+            let error = rejection(&bytes);
+            assert!(error.contains("subtree pointer out of bounds"), "{error}");
         }
     }
 }
