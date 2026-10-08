@@ -7,14 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Restore the ZK benchmark and include benchmarks in Clippy checks [#137]
-
 ### Changed
 
 - Simplify Poseidon aggregation and ZK support code [#133]
-- Update Criterion to 0.8 [#129]
 - Raise the MSRV to Rust 1.96.1 [#127]
 - Update `dusk-plonk` to `v0.22.0-rc.0`
 - Update `dusk-poseidon` to `v0.42.0-rc.0`
@@ -95,10 +90,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add poseidon-merkle crate [#58]
 
 <!-- ISSUES -->
-[#137]: https://github.com/dusk-network/merkle/issues/137
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#132]: https://github.com/dusk-network/merkle/issues/132
-[#129]: https://github.com/dusk-network/merkle/issues/129
 [#127]: https://github.com/dusk-network/merkle/issues/127
 [#85]: https://github.com/dusk-network/merkle/issues/85
 [#58]: https://github.com/dusk-network/merkle/issues/58
