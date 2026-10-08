@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-10-09
+
 ### Changed
 
 - Simplify Poseidon aggregation and ZK support code [#133]
@@ -14,12 +16,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Update `dusk-plonk` to `0.24` [#143]
 - Update `dusk-poseidon` to `0.44` [#143]
 - Update `dusk-bls12_381` to `0.16` [#143]
-- Update `dusk-merkle` to `v0.6.0-rc.0`
-- Update to rust stable version 1.85, edition 2024
+- Update `dusk-merkle` to `0.6`
 
 ### Removed
 
 - Remove duplicate ZK example [#132]
+
+## [0.10.0] - 2026-06-03 [yanked]
+
+Replaced by 0.11.0, which does not keep `dusk-curves` or the `bls-backend-dusk` and `bls-backend-blst` features.
+
+### Changed
+
+- Update `dusk-plonk` to v0.23
+- Update `dusk-poseidon` to v0.43
+- Replace `dusk-bls12_381` with `dusk-curves` v0.2
+- Add `bls-backend-dusk` and `bls-backend-blst` features for consumers to select the BLS12-381 backend
+- Use the BLST backend in local and CI verification commands
+- Update `dusk-merkle` to `v0.6.0-rc.0`
+- Update to rust stable version 1.85, edition 2024
 
 ## [0.8.0] - 2025-02-07
 
@@ -99,7 +114,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#58]: https://github.com/dusk-network/merkle/issues/58
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.8.0...HEAD
+[Unreleased]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.11.0...HEAD
+[0.11.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.8.0...poseidon-merkle_v0.11.0
+[0.10.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.8.0...poseidon-merkle_v0.10.0
 [0.8.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.7.0...poseidon-merkle_v0.8.0
 [0.7.0]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.6.1...poseidon-merkle_v0.7.0
 [0.6.1]: https://github.com/dusk-network/merkle/compare/poseidon-merkle_v0.6.0...poseidon-merkle_v0.6.1
