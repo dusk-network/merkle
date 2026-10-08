@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-09
+
 ### Changed
 
 - Reject an arity of 1 in `Tree::new` at compile time and in checked RKYV deserialization [#144]
 - Replace custom unsafe array initialization with `core::array::from_fn` [#131]
 - Simplify opening verification with native array references [#133]
 - Raise the MSRV to Rust 1.96.1 [#127]
-- Update to rust stable version 1.85, edition 2024
 
 ### Fixed
 
@@ -156,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#13]: https://github.com/dusk-network/merkle/issues/13
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/dusk-network/merkle/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/dusk-network/merkle/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/dusk-network/merkle/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/dusk-network/merkle/compare/v0.5.0...v0.5.1
