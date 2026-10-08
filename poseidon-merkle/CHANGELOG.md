@@ -11,8 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Simplify Poseidon aggregation and ZK support code [#133]
 - Raise the MSRV to Rust 1.96.1 [#127]
-- Update `dusk-plonk` to `v0.22.0-rc.0`
-- Update `dusk-poseidon` to `v0.42.0-rc.0`
+- Update `dusk-plonk` to `0.24` [#143]
+- Update `dusk-poseidon` to `0.44` [#143]
+- Update `dusk-bls12_381` to `0.16` [#143]
 - Update `dusk-merkle` to `v0.6.0-rc.0`
 - Update to rust stable version 1.85, edition 2024
 
@@ -90,6 +91,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add poseidon-merkle crate [#58]
 
 <!-- ISSUES -->
+[#143]: https://github.com/dusk-network/merkle/issues/143
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#132]: https://github.com/dusk-network/merkle/issues/132
 [#127]: https://github.com/dusk-network/merkle/issues/127
