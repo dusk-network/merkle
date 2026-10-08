@@ -11,9 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Replace custom unsafe array initialization with `core::array::from_fn` [#131]
 - Simplify opening verification with native array references [#133]
-- Update Criterion to 0.8 [#129]
 - Raise the MSRV to Rust 1.96.1 [#127]
-- Update `dusk-bls12_381` dev dependency to v0.14
 - Update to rust stable version 1.85, edition 2024
 
 ### Fixed
@@ -129,7 +127,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 <!-- ISSUES -->
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#131]: https://github.com/dusk-network/merkle/issues/131
-[#129]: https://github.com/dusk-network/merkle/issues/129
 [#127]: https://github.com/dusk-network/merkle/issues/127
 [#121]: https://github.com/dusk-network/merkle/issues/121
 [#119]: https://github.com/dusk-network/merkle/issues/119

@@ -136,4 +136,8 @@ Examples:
 
 ### Changelog
 
-Both crates have a `CHANGELOG.md`. Add entries under `[Unreleased]` using [keep-a-changelog](https://keepachangelog.com/) format. If a change traces to a GitHub issue, reference it as a link: `[#42](https://github.com/dusk-network/merkle/issues/42)`. Only link to GitHub issues — do not reference any other tracking system.
+Update a crate's `CHANGELOG.md` under `[Unreleased]` for user-visible changes only. Exclude tests, CI, tooling, and refactors.
+
+- One fact per entry. Name the public item and behavior, including the affected released item if breaking. Leave implementation, rationale, consequences, and migration to the linked issue.
+- Use existing `Added`, `Changed`, or `Removed` sections. Use `Fixed` only for released bugs. Correct unreleased bugs in their original entry.
+- Link only the GitHub issue, not the PR. Match existing link style and define references below. Preserve other entries and follow [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and Markdown blank-line spacing.
