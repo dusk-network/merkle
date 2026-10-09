@@ -1,7 +1,7 @@
 [package]
 name = "dusk-merkle"
 description = "Crate implementing Dusk Network's Merkle tree"
-version = "0.6.0-rc.0"
+version = "0.6.0"
 
 categories = ["data-structures", "no-std"]
 keywords = ["tree", "merkle", "hash", "data", "structure"]
@@ -23,7 +23,7 @@ bytecheck = { version = "0.6", optional = true, default-features = false }
 [dev-dependencies]
 blake3 = "1"
 rand = "0.8"
-dusk-bls12_381 = "0.14"
+dusk-bls12_381 = "0.16"
 ff = { version = "0.13", default-features = false }
 criterion = "0.8"
 

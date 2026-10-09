@@ -59,7 +59,7 @@ impl Aggregate<A> for Item {
         }
 
         Self {
-            hash: BlsScalar::hash_to_scalar(&bytes),
+            hash: BlsScalar::hash_to_scalar(None, &bytes),
             bh_range,
         }
     }

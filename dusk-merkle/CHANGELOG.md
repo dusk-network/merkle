@@ -7,15 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-09
+
 ### Changed
 
+- Reject an arity of 1 in `Tree::new` at compile time and in checked RKYV deserialization [#144]
 - Replace custom unsafe array initialization with `core::array::from_fn` [#131]
 - Simplify opening verification with native array references [#133]
 - Raise the MSRV to Rust 1.96.1 [#127]
-- Update to rust stable version 1.85, edition 2024
 
 ### Fixed
 
+- Bound recursion in checked RKYV deserialization of archived trees by the tree height [#123]
+- Reject a zero height or arity, or a capacity above `u64::MAX`, in `Tree::new` at compile time [#144]
 - Return `None` when recorded tree positions have missing paths [#110]
 - Reject archived openings with out-of-range positions during checked RKYV deserialization [#121]
 - Return `false` when an opening contains an out-of-range position [#109]
@@ -125,6 +129,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix `CheckBytes` derivation in `Node` [#15]
 
 <!-- ISSUES -->
+[#123]: https://github.com/dusk-network/merkle/issues/123
+[#144]: https://github.com/dusk-network/merkle/issues/144
 [#133]: https://github.com/dusk-network/merkle/issues/133
 [#131]: https://github.com/dusk-network/merkle/issues/131
 [#127]: https://github.com/dusk-network/merkle/issues/127
@@ -151,7 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#13]: https://github.com/dusk-network/merkle/issues/13
 
 <!-- VERSIONS -->
-[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.5.3...HEAD
+[Unreleased]: https://github.com/dusk-network/merkle/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/dusk-network/merkle/compare/v0.5.3...v0.6.0
 [0.5.3]: https://github.com/dusk-network/merkle/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/dusk-network/merkle/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/dusk-network/merkle/compare/v0.5.0...v0.5.1
