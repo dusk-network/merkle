@@ -182,3 +182,60 @@ fn opening_gadget_accepts_valid_and_rejects_tampering() {
 
     assert_rejected(&prover, &mut rng, tampered_root, leaf, "Tampered root");
 }
+
+/// Reading an archive without validation can produce an opening whose position
+/// at a level is not below the arity, so that none of the level's position
+/// bits is set. Native verification rejects such an opening, and the gadget
+/// must not prove it, for any leaf.
+#[cfg(feature = "rkyv-impl")]
+#[test]
+fn opening_gadget_rejects_out_of_range_position() {
+    use rkyv::{Deserialize, Infallible};
+
+    let label = b"merkle opening";
+    let mut rng = StdRng::seed_from_u64(0xdea2);
+    let pp = PublicParameters::setup(1 << CAPACITY, &mut rng).unwrap();
+    let (prover, _) = Compiler::compile::<OpeningCircuit>(&pp, label)
+        .expect("Circuit should compile successfully");
+
+    let mut tree = Tree::new();
+    let hash = Hash::digest(Domain::Other, &[BlsScalar::random(&mut rng)])[0];
+    let leaf = PoseidonItem::new(hash, ());
+    // every level's position is 1
+    let position = (tree.capacity() - 1) / 3;
+    tree.insert(position, leaf);
+    let opening = tree.opening(position).unwrap();
+    assert_eq!(opening.positions(), &[1; HEIGHT]);
+
+    // Set the position of the leaf level to the arity in the archive.
+    let mut bytes = rkyv::to_bytes::<_, 4096>(&opening).unwrap();
+    let positions = rkyv::to_bytes::<_, 256>(opening.positions()).unwrap();
+    let offsets: Vec<usize> = (0..=bytes.len() - positions.len())
+        .filter(|&i| bytes[i..i + positions.len()] == positions[..])
+        .collect();
+    assert_eq!(offsets.len(), 1, "The positions should be found once");
+    let width = positions.len() / HEIGHT;
+    let leaf_level = offsets[0] + (HEIGHT - 1) * width;
+    let arity = rkyv::to_bytes::<_, 256>(&[ARITY; HEIGHT]).unwrap();
+    bytes[leaf_level..leaf_level + width].copy_from_slice(&arity[..width]);
+
+    assert!(rkyv::check_archived_root::<Opening<(), HEIGHT>>(&bytes).is_err());
+    // SAFETY: only an archived position was changed, and every bit pattern is
+    // a valid archived `usize`.
+    let archived =
+        unsafe { rkyv::archived_root::<Opening<(), HEIGHT>>(&bytes) };
+    let opening: Opening<(), HEIGHT> =
+        archived.deserialize(&mut Infallible).unwrap();
+    assert_eq!(opening.positions()[HEIGHT - 1], ARITY);
+
+    let wrong_leaf = PoseidonItem::new(leaf.hash + BlsScalar::one(), ());
+    for leaf in [leaf, wrong_leaf] {
+        assert_rejected(
+            &prover,
+            &mut rng,
+            opening,
+            leaf,
+            "Position out of range",
+        );
+    }
+}
