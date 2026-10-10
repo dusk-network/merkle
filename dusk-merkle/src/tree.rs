@@ -428,6 +428,22 @@ mod tests {
     }
 
     #[test]
+    fn contains_and_is_empty_track_positions() {
+        let mut tree = SumTree::new();
+        assert!(tree.is_empty());
+        assert!(!tree.contains(5));
+
+        tree.insert(5, 42);
+        assert!(!tree.is_empty());
+        assert!(tree.contains(5));
+        assert!(!tree.contains(4));
+
+        tree.remove(5);
+        assert!(tree.is_empty());
+        assert!(!tree.contains(5));
+    }
+
+    #[test]
     #[should_panic(
         expected = "index out of bounds: the capacity is 8 but the index is 8"
     )]
@@ -478,6 +494,19 @@ mod tests {
         assert!(tree.contains(position));
         assert_eq!(tree.len(), len);
         assert_eq!(*tree.root(), root);
+    }
+
+    #[test]
+    fn position_at_capacity_is_not_recorded() {
+        let mut tree = SumTree::new();
+        tree.insert(0, 42);
+
+        let position = tree.capacity();
+        tree.positions.insert(position);
+
+        assert!(!tree.has_recorded_position(position));
+        assert!(tree.opening(position).is_none());
+        assert!(tree.remove(position).is_none());
     }
 
     #[test]
