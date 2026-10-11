@@ -428,6 +428,22 @@ mod tests {
     }
 
     #[test]
+    fn contains_and_is_empty_track_positions() {
+        let mut tree = SumTree::new();
+        assert!(tree.is_empty());
+        assert!(!tree.contains(5));
+
+        tree.insert(5, 42);
+        assert!(!tree.is_empty());
+        assert!(tree.contains(5));
+        assert!(!tree.contains(4));
+
+        tree.remove(5);
+        assert!(tree.is_empty());
+        assert!(!tree.contains(5));
+    }
+
+    #[test]
     #[should_panic(
         expected = "index out of bounds: the capacity is 8 but the index is 8"
     )]
@@ -482,21 +498,22 @@ mod tests {
 
     #[test]
     fn out_of_bounds_tree_position_returns_none() {
-        let mut tree = SumTree::new();
-        tree.insert(0, 42);
+        let capacity = SumTree::new().capacity();
+        for position in [capacity, 1 << 34] {
+            let mut tree = SumTree::new();
+            tree.insert(0, 42);
+            tree.positions.insert(position);
 
-        let position = 1 << 34;
-        tree.positions.insert(position);
+            let len = tree.len();
+            let root = *tree.root();
 
-        let len = tree.len();
-        let root = *tree.root();
-
-        assert!(!tree.has_recorded_position(position));
-        assert!(tree.opening(position).is_none());
-        assert!(tree.remove(position).is_none());
-        assert!(tree.contains(position));
-        assert_eq!(tree.len(), len);
-        assert_eq!(*tree.root(), root);
+            assert!(!tree.has_recorded_position(position), "{position}");
+            assert!(tree.opening(position).is_none(), "{position}");
+            assert!(tree.remove(position).is_none(), "{position}");
+            assert!(tree.contains(position), "{position}");
+            assert_eq!(tree.len(), len, "{position}");
+            assert_eq!(*tree.root(), root, "{position}");
+        }
     }
 
     // create test tree for shrunken root:
